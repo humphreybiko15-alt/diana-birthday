@@ -5,23 +5,15 @@ import confetti from 'canvas-confetti'
 /* ════════════════════════════════════════════════════════
    ⚙️  CHANGE MY_NAME TO YOUR ACTUAL NAME!
    ════════════════════════════════════════════════════════ */
-export const MY_NAME = 'Yours 💜' // ← Replace with YOUR name
+export const MY_NAME = 'Yours 💜' // Fallback when no profile is provided
 
-/* ─── Sweet messages about your story ─────────────────── */
-const SWEET_MSGS = [
-  'Two years apart… yet you were never off my mind 💜',
-  'Some love stories pause — they never really end ✨',
-  'I remembered every smile, every single one 🌙',
-  'Broken for two years, whole again now 💫',
-  'You were always worth finding my way back to 🕊️',
-  'The heart always knows where it belongs 🏡',
-  'Blue shirt, first kiss on the road — I remember it all 💕',
-  "This time, we're not letting go. Ever. 🔐",
-  "Distance couldn't erase what we had 🌍",
-  'Every day apart made me sure — it had to be you 💘',
+const WAYPOINTS = [
+  [14, 25], [80, 18], [82, 68], [12, 72], [50, 85],
+  [82, 42], [25, 55], [62, 28], [42, 68], [32, 18],
+  [68, 80], [18, 42], [58, 55], [28, 80],
 ]
-
-/* ─── Decoy names ──────────────────────────────────────── */
+const MAX_ESCAPES = 5
+const TARGET = { x: 50, y: 12 }
 const CHASE_DECOYS = ['Kevin', 'Brian', 'James', 'Mark']
 const DRAG_DECOYS = [
   { x: 10, y: 44, name: 'Kevin' },
@@ -30,19 +22,22 @@ const DRAG_DECOYS = [
   { x: 88, y: 70, name: 'Mark' },
 ]
 
-/* ─── Heart escape waypoints (%%) — spread around edges ── */
-const WAYPOINTS = [
-  [14, 25], [80, 18], [82, 68], [12, 72], [50, 85],
-  [82, 42], [25, 55], [62, 28], [42, 68], [32, 18],
-  [68, 80], [18, 42], [58, 55], [28, 80],
-]
-const MAX_ESCAPES = 5   // ← fewer escapes = easier to catch
-const TARGET = { x: 50, y: 12 }
-
 /* ══════════════════════════════════════════════════════════
    STAGE: Runaway Heart → Catch → Swipe Up to Unlock Name
    ══════════════════════════════════════════════════════════ */
-export function RunawayHeartStage({ onComplete }) {
+export function RunawayHeartStage({ onComplete, profile }) {
+  const targetName = profile?.partner1Name?.trim() || MY_NAME
+  const firstMet = profile?.firstMet?.trim() || 'that unforgettable spot'
+  const favoriteThing = profile?.favoriteThing?.trim() || 'every little detail'
+  const partner2 = profile?.partner2Name?.trim() || 'you'
+
+  const sweetMsgs = [
+    `Thinking back to ${firstMet} with ${partner2}… never off my mind 💜`,
+    'Some love stories pause — ours keeps glowing ✨',
+    `${favoriteThing} — I remembered every single detail 🌙`,
+    `${targetName} and ${partner2}: stronger together 💫`,
+    'The heart always knows where it belongs 🏡',
+  ]
   const containerRef = useRef(null)
   const lastEscRef = useRef(0)
   const isDraggingRef = useRef(false)
@@ -117,7 +112,7 @@ export function RunawayHeartStage({ onComplete }) {
       const [nx, ny] = sorted[Math.floor(Math.random() * 5)]
       setPos({ x: nx, y: ny })
       showFloat(
-        SWEET_MSGS[Math.floor(Math.random() * SWEET_MSGS.length)],
+        sweetMsgs[Math.floor(Math.random() * sweetMsgs.length)],
         18 + Math.random() * 58,
         12 + Math.random() * 34
       )
@@ -228,10 +223,10 @@ export function RunawayHeartStage({ onComplete }) {
 
   /* ─── Subtitle text per phase ───────────────────────── */
   const subtitleText = () => {
-    if (phase === 'done') return `${MY_NAME} — It was always yours 💜`
+    if (phase === 'done') return `${targetName} — It was always yours 💜`
     if (phase === 'drag') return unlocked
-      ? `${MY_NAME} ✨ — swipe all the way up!`
-      : `Swipe the 💖 up to unlock his name! 🔐`
+      ? `${targetName} ✨ — swipe all the way up!`
+      : `Swipe the 💖 up to unlock ${targetName}'s secret! 🔐`
     if (phase === 'caught') return 'You caught it! 💜 Loading your surprise...'
     if (phase === 'catchable') return 'It stopped! Tap anywhere to catch it! 🫰'
     return `Move your finger toward the heart! ${MAX_ESCAPES - escapes} more and it gives up 😏`
@@ -476,7 +471,7 @@ export function RunawayHeartStage({ onComplete }) {
                   letterSpacing: unlocked ? '1px' : '4px',
                 }}
               >
-                {unlocked ? MY_NAME : '??? 🔐'}
+                {unlocked ? targetName : '??? 🔐'}
               </div>
 
               {/* Sub-label */}
