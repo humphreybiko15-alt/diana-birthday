@@ -4,10 +4,10 @@ import confetti from 'canvas-confetti'
 import { RunawayHeartStage, BlueShirtStage, FirstKissStage } from './LoveStages.jsx'
 
 /* ────────────────────────────────────────────────
-   STAGE 1: Letter Scramble — Unscramble "MACCY"
+   STAGE 1: Letter Scramble — Unscramble "NAISULA"
 ─────────────────────────────────────────────── */
-const SCRAMBLED = ['C', 'A', 'M', 'Y', 'C']
-const TARGET_WORD = 'MACCY'
+const SCRAMBLED = ['N', 'A', 'I', 'S', 'U', 'L', 'A']
+const TARGET_WORD = 'NAISULA'
 
 function Stage1({ onComplete }) {
   const [tiles, setTiles] = useState(SCRAMBLED)
@@ -125,7 +125,7 @@ function Stage2({ onComplete }) {
         <span className="stage-emoji">🎂</span>
         <h2 className="stage-title gradient-text">The Magic Number</h2>
         <p className="stage-subtitle">
-          What year was Maccy born? 📅<br />
+          What year was Naisula born? 📅<br />
           <span style={{ fontSize: '0.9rem', opacity: 0.6 }}>(Go ahead, she won't admit it 😏)</span>
         </p>
 
@@ -404,7 +404,7 @@ function RevealScreen() {
         transition={{ delay: 0.3 }}
       >
         <h1 className="reveal-title font-display glow-text">
-          Happy Birthday,<br />Maccy! 🎂
+          Happy Birthday,<br />Naisula! 🎂
         </h1>
         <p className="reveal-sub">You cracked all 5 — blue shirt, road kiss and all 👑💜</p>
       </motion.div>
@@ -425,7 +425,7 @@ function RevealScreen() {
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ repeat: Infinity, duration: 2 }}
             >
-              <div className="card-name">Maccy ✨</div>
+              <div className="card-name">Naisula ✨</div>
               <div className="card-subtitle" style={{ marginBottom: 16 }}>Your Birthday Surprise</div>
               <div style={{ fontSize: '3rem' }}>🎁</div>
               <div className="card-subtitle" style={{ marginTop: 12, fontSize: '0.8rem' }}>
@@ -466,7 +466,7 @@ function RevealScreen() {
         >
           <div style={{ fontSize: '1.6rem', marginBottom: 12 }}>💌</div>
           <p style={{ fontSize: '1.05rem', lineHeight: 1.85, color: 'rgba(255,255,255,0.88)' }}>
-            Maccy — two years is a long time to spend apart from someone you love. 
+            Naisula — two years is a long time to spend apart from someone you love. 
             But here we are, back where we should've never left. 🕊️
             <br /><br />
             From that first date in the blue shirt, to the kiss on the road that neither of us planned — 
@@ -534,7 +534,7 @@ function WelcomeScreen({ onStart }) {
       </h1>
 
       <p style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.7)', marginBottom: 12, lineHeight: 1.7 }}>
-        Hey Maccy 👋 Someone who cares about you<br />
+        Hey Naisula 👋 Someone who cares about you<br />
         prepared something extra special today.
       </p>
 
