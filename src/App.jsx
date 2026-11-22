@@ -229,8 +229,8 @@ function Stage3({ onComplete }) {
 }
 
 /* ────────────────────────────────────────────────
-   STAGE 4: Pop the Correct Balloons
-   She must pop balloons in order: 🩷💜💛 (3 balloons)
+   STAGE 4: Memory Sequence — Memorize & Recall Balloon Order
+   Two-phase gameplay: MEMORIZE (2.5s) → RECALL (hidden sequence)
 ─────────────────────────────────────────────── */
 const BALLOON_SEQUENCE = ['🩷', '💜', '💛']
 const ALL_BALLOONS = [
@@ -242,23 +242,63 @@ const ALL_BALLOONS = [
   { id: 5, emoji: '💚', color: '#22c55e' },
 ]
 
+const MEMORIZE_DURATION = 2500 // 2.5 seconds
+
 function Stage4({ onComplete }) {
-  const [popped, setPopped] = useState([])
-  const [progress, setProgress] = useState([]) // emojis in order popped
+  const [phase, setPhase] = useState('MEMORIZE') // MEMORIZE | RECALL
+  const [playerInput, setPlayerInput] = useState([])
   const [wrong, setWrong] = useState(false)
   const [success, setSuccess] = useState(false)
+  
+  const timerRef = useRef(null)
+  const phaseStartRef = useRef(Date.now())
+  const gameIdRef = useRef(0) // Track game session to prevent stale callbacks
 
-  const popBalloon = (balloon) => {
-    if (popped.includes(balloon.id) || success) return
-    const nextExpected = BALLOON_SEQUENCE[progress.length]
+  // Clear timer helper
+  const clearTimer = () => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+  }
 
-    if (balloon.emoji === nextExpected) {
-      const newProgress = [...progress, balloon.emoji]
-      setPopped(prev => [...prev, balloon.id])
-      setProgress(newProgress)
+  // Start a new game session
+  const startGame = () => {
+    const currentGameId = ++gameIdRef.current
+    setPhase('MEMORIZE')
+    setPlayerInput([])
+    setWrong(false)
+    setSuccess(false)
+    setProgress(0)
+    phaseStartRef.current = Date.now()
 
-      if (newProgress.length === BALLOON_SEQUENCE.length) {
+    timerRef.current = setTimeout(() => {
+      // Ignore if game has been restarted
+      if (gameIdRef.current !== currentGameId) return
+      setPhase('RECALL')
+      phaseStartRef.current = Date.now()
+      timerRef.current = null
+    }, MEMORIZE_DURATION)
+  }
+
+  // Handle balloon selection during RECALL phase
+  const handleSelect = (balloon) => {
+    // Ignore selections during MEMORIZE phase
+    if (phase !== 'RECALL') return
+    if (success || wrong) return
+
+    const expectedIndex = playerInput.length
+    const expectedEmoji = BALLOON_SEQUENCE[expectedIndex]
+
+    if (balloon.emoji === expectedEmoji) {
+      // Correct selection
+      const newInput = [...playerInput, balloon.emoji]
+      setPlayerInput(newInput)
+
+      if (newInput.length === BALLOON_SEQUENCE.length) {
+        // Sequence complete!
         setSuccess(true)
+        clearTimer()
         confetti({
           particleCount: 200,
           spread: 120,
@@ -269,14 +309,23 @@ function Stage4({ onComplete }) {
         setTimeout(onComplete, 1600)
       }
     } else {
+      // Wrong selection
       setWrong(true)
+      clearTimer()
       setTimeout(() => {
         setWrong(false)
-        setPopped([])
-        setProgress([])
+        setPlayerInput([])
+        // Restart the game with a fresh memorize phase
+        startGame()
       }, 800)
     }
   }
+
+  // Initialize on mount
+  useEffect(() => {
+    startGame()
+    return () => clearTimer() // Cleanup on unmount
+  }, [])
 
   const BALLOON_COLORS = {
     '#f43f5e': '#ff6b8a',
@@ -287,33 +336,121 @@ function Stage4({ onComplete }) {
     '#22c55e': '#4ade80',
   }
 
+  // Build display sequence: show actual during MEMORIZE, masked during RECALL
+  const displaySequence = phase === 'MEMORIZE' 
+    ? BALLOON_SEQUENCE 
+    : BALLOON_SEQUENCE.map((emoji, i) => (i < playerInput.length ? playerInput[i] : '❓'))
+
+  // Progress text for MEMORIZE phase
+  const memorizeProgress = phase === 'MEMORIZE' 
+    ? Math.max(0, MEMORIZE_DURATION - (Date.now() - phaseStartRef.current))
+    : 0
+
   return (
     <motion.div className="stage" key="stage4" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -50 }}>
       <div className="stage-card glass-card">
         <span className="stage-emoji">🎈</span>
-        <h2 className="stage-title gradient-text">Pop the Magic Balloons!</h2>
-        <p className="stage-subtitle">
-          Pop them in this secret order:<br />
-          <span style={{ fontSize: '2rem', letterSpacing: '8px' }}>
-            {BALLOON_SEQUENCE.map((e, i) => (
-              <span key={i} style={{ opacity: progress.length > i ? 0.4 : 1 }}>{e}</span>
-            ))}
-          </span>
-        </p>
+        <h2 className="stage-title gradient-text">Memory Sequence Challenge!</h2>
+        
+        {phase === 'MEMORIZE' && (
+          <motion.p className="stage-subtitle" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            🧠 Memorize the sequence!
+            <br />
+            <span style={{ fontSize: '1.1rem', opacity: 0.8 }}>
+              Time: {(memorizeProgress / 1000).toFixed(1)}s
+            </span>
+          </motion.p>
+        )}
 
-        <div className="balloons-grid">
+        {phase === 'RECALL' && (
+          <motion.p className="stage-subtitle" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            🎯 Now recall the sequence!
+            <br />
+            <span style={{ fontSize: '1.1rem', opacity: 0.8 }}>
+              Select the balloons in order
+            </span>
+          </motion.p>
+        )}
+
+        {/* Target sequence display */}
+        <div 
+          className="sequence-display" 
+          style={{ 
+            fontSize: '2rem', 
+            letterSpacing: '8px', 
+            margin: '16px 0',
+            minHeight: '48px',
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '8px',
+            flexWrap: 'wrap'
+          }}
+          role="status"
+          aria-live="polite"
+          aria-label={phase === 'MEMORIZE' ? 'Sequence to memorize' : 'Your current progress'}
+        >
+          {displaySequence.map((emoji, i) => (
+            <span 
+              key={i} 
+              style={{ 
+                opacity: phase === 'RECALL' && i >= playerInput.length ? 0.5 : 1,
+                transition: 'opacity 0.2s'
+              }}
+            >
+              {emoji}
+            </span>
+          ))}
+        </div>
+
+        {phase === 'MEMORIZE' && (
+          <div 
+            style={{ 
+              height: 4, 
+              background: 'rgba(255,255,255,0.2)', 
+              borderRadius: 2, 
+              overflow: 'hidden',
+              marginBottom: 16
+            }}
+            role="progressbar"
+            aria-valuenow={Math.round((1 - memorizeProgress / MEMORIZE_DURATION) * 100)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Memorization time remaining"
+          >
+            <motion.div
+              style={{
+                height: '100%',
+                background: 'linear-gradient(90deg, #d946ef, #7c3aed, #fbbf24)',
+                borderRadius: 2,
+                transition: 'width 0.1s linear'
+              }}
+              initial={{ width: '0%' }}
+              animate={{ width: `${(1 - memorizeProgress / MEMORIZE_DURATION) * 100}%` }}
+            />
+          </div>
+        )}
+
+        {/* Selection grid - only interactive during RECALL */}
+        <div className="balloons-grid" role="group" aria-label="Balloon selection">
           {ALL_BALLOONS.map((b, i) => (
             <motion.div
               key={b.id}
-              className={`balloon${popped.includes(b.id) ? ' popped' : ''}`}
+              className={`balloon${phase === 'RECALL' && playerInput.includes(b.emoji) ? ' selected' : ''}`}
               style={{
                 background: `radial-gradient(circle at 30% 30%, ${BALLOON_COLORS[b.color] || b.color}, ${b.color})`,
                 '--fdur': `${2.5 + i * 0.4}s`,
                 '--fdelay': `${i * 0.2}s`,
+                opacity: phase === 'RECALL' && wrong ? 0.6 : 1,
+                pointerEvents: phase === 'RECALL' && !wrong && !success ? 'auto' : 'none',
               }}
-              whileHover={!popped.includes(b.id) ? { scale: 1.15, y: -8 } : {}}
-              whileTap={!popped.includes(b.id) ? { scale: 0.8 } : {}}
-              onClick={() => popBalloon(b)}
+              whileHover={phase === 'RECALL' && !wrong && !success ? { scale: 1.15, y: -8 } : {}}
+              whileTap={phase === 'RECALL' && !wrong && !success ? { scale: 0.8 } : {}}
+              onClick={() => handleSelect(b)}
+              tabIndex={phase === 'RECALL' && !wrong && !success ? 0 : -1}
+              onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && phase === 'RECALL') handleSelect(b); }}
+              role="button"
+              aria-label={`Balloon ${b.emoji}`}
+              aria-disabled={phase !== 'RECALL' || wrong || success}
             >
               {b.emoji}
             </motion.div>
@@ -321,8 +458,14 @@ function Stage4({ onComplete }) {
         </div>
 
         {wrong && (
-          <motion.p style={{ color: '#f43f5e', fontWeight: 700 }} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            Oops! Wrong order — start over! 😄
+          <motion.p 
+            style={{ color: '#f43f5e', fontWeight: 700 }} 
+            initial={{ opacity: 0, scale: 0.9 }} 
+            animate={{ opacity: 1, scale: 1 }}
+            role="alert"
+            aria-live="assertive"
+          >
+            Oops! Wrong order — starting over! 😄
           </motion.p>
         )}
         {success && (
@@ -332,8 +475,9 @@ function Stage4({ onComplete }) {
         )}
 
         <p className="hint-text" style={{ marginTop: 16 }}>
-          Progress: {progress.length}/{BALLOON_SEQUENCE.length} 
-          {' '}{progress.map((e, i) => <span key={i}>{e}</span>)}
+          {phase === 'MEMORIZE' 
+            ? `Memorize: ${BALLOON_SEQUENCE.join(' → ')}` 
+            : `Progress: ${playerInput.length}/${BALLOON_SEQUENCE.length}`}
         </p>
       </div>
     </motion.div>
