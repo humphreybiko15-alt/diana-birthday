@@ -10,7 +10,7 @@ const SCRAMBLED = ['N', 'A', 'I', 'S', 'U', 'L', 'A']
 const TARGET_WORD = 'NAISULA'
 
 function Stage1({ onComplete }) {
-  const [tiles, setTiles] = useState(SCRAMBLED)
+  const [tiles] = useState(SCRAMBLED)
   const [selected, setSelected] = useState([])
   const [answer, setAnswer] = useState([])
   const [status, setStatus] = useState('idle') // idle | correct | wrong
@@ -37,7 +37,6 @@ function Stage1({ onComplete }) {
 
   const handleSlotClick = (i) => {
     if (status === 'correct') return
-    const letterIdx = selected[i]
     setAnswer(prev => prev.filter((_, j) => j !== i))
     setSelected(prev => prev.filter((_, j) => j !== i))
   }
@@ -491,7 +490,6 @@ function RevealScreen() {
   const [flipped, setFlipped] = useState(false)
   const [showMessage, setShowMessage] = useState(false)
   const [blasted, setBlasted] = useState(false)
-  const cardRef = useRef(null)
 
   useEffect(() => {
     // Big confetti blast on mount
@@ -796,7 +794,7 @@ export default function App() {
   const [screen, setScreen] = useState('welcome') // welcome | puzzle | reveal
   const [stage, setStage] = useState(0)
 
-  const STAGES = [Stage1, RunawayHeartStage, BlueShirtStage, FirstKissStage, Stage4]
+  const STAGES = [Stage1, Stage2, Stage3, Stage4, RunawayHeartStage, BlueShirtStage, FirstKissStage]
   const CurrentStage = STAGES[stage]
 
   const nextStage = () => {
