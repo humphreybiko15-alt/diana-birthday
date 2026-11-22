@@ -22,10 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# Antigravity / Keen-Bell agent runtime artifacts
-.agents/
-.architecture/
-.worktrees/
-run_record.json
-implementation_plan.md
