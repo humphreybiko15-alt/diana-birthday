@@ -268,7 +268,6 @@ function Stage4({ onComplete }) {
     setPlayerInput([])
     setWrong(false)
     setSuccess(false)
-    setProgress(0)
     phaseStartRef.current = Date.now()
 
     timerRef.current = setTimeout(() => {
