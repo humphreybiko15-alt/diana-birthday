@@ -138,7 +138,7 @@ describe('MemorySequenceLogic', () => {
     assert.equal(state.isFailed, false);
   });
 
-  test('10. Restart clears pending timers (simulates unmount/new game)', () => {
+  test('10. Unmounting clears pending timers (simulated via restart during MEMORIZE)', () => {
     logic.start(callbacks.onPhaseChange, callbacks.onComplete, callbacks.onFail);
 
     // Restart while timer is active (simulates unmount/new game)
@@ -147,7 +147,8 @@ describe('MemorySequenceLogic', () => {
     const state = logic.getState();
     assert.equal(state.phase, 'MEMORIZE');
     assert.equal(state.playerInput.length, 0);
-    // Timer should have been cleared
+    // Timer should have been cleared by restart before starting a new one
+    assert.equal(logic.timerId !== null, true, 'a new memorize timer should be active after restart');
   });
 
   test('11. Rapid interactions cannot bypass phase transition', () => {
