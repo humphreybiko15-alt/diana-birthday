@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti'
 /* ════════════════════════════════════════════════════════
    ⚙️  CHANGE MY_NAME TO YOUR ACTUAL NAME!
    ════════════════════════════════════════════════════════ */
-export const MY_NAME = 'Yours 💜' // ← Replace with YOUR name
+export const MY_NAME = 'Diana' // ← Replace with YOUR name
 
 /* ─── Sweet messages about your story ─────────────────── */
 const SWEET_MSGS = [

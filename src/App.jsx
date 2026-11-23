@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { RunawayHeartStage, BlueShirtStage, FirstKissStage } from './LoveStages.jsx'
+import { MemorySequenceLogic } from './memorySequenceLogic.js'
 
 /* ────────────────────────────────────────────────
    STAGE 1: Letter Scramble — Unscramble "BIKO"
@@ -244,76 +245,79 @@ const ALL_BALLOONS = [
 const MEMORIZE_DURATION = 2500 // 2.5 seconds
 
 function Stage4({ onComplete }) {
-  const [phase, setPhase] = useState('MEMORIZE') // MEMORIZE | RECALL
-  const [playerInput, setPlayerInput] = useState([])
+  const [state, setState] = useState(null) // { phase, playerInput, ... }
   const [wrong, setWrong] = useState(false)
   const [success, setSuccess] = useState(false)
-  
-  const timerRef = useRef(null)
-  const phaseStartRef = useRef(Date.now())
-  const gameIdRef = useRef(0) // Track game session to prevent stale callbacks
 
-  // Clear timer helper
-  const clearTimer = () => {
+  const timerRef = useRef(null)   // memorize setTimeout
+  const tickRef = useRef(null)    // progress re-render interval
+  const gameIdRef = useRef(0)     // Track game session to prevent stale callbacks
+
+  const logicRef = useRef(new MemorySequenceLogic(BALLOON_SEQUENCE, MEMORIZE_DURATION))
+
+  // Clear all timers
+  const clearTimers = () => {
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current)
       timerRef.current = null
     }
+    if (tickRef.current !== null) {
+      clearInterval(tickRef.current)
+      tickRef.current = null
+    }
   }
 
-  // Start a new game session
+  // Start a fresh game session
   const startGame = () => {
+    clearTimers()
     const currentGameId = ++gameIdRef.current
-    setPhase('MEMORIZE')
-    setPlayerInput([])
-    setWrong(false)
-    setSuccess(false)
-    phaseStartRef.current = Date.now()
+    logicRef.current.restart()
+    setState(logicRef.current.getState())
 
+    // Re-render tick during MEMORIZE so progress bar / time animate smoothly
+    tickRef.current = setInterval(() => {
+      if (logicRef.current.getState().phase === 'MEMORIZE') {
+        setState(logicRef.current.getState())
+      }
+    }, 50)
+
+    // Auto-transition to RECALL after memorize duration
     timerRef.current = setTimeout(() => {
-      // Ignore if game has been restarted
       if (gameIdRef.current !== currentGameId) return
-      setPhase('RECALL')
-      phaseStartRef.current = Date.now()
-      timerRef.current = null
+      const s = logicRef.current.getState()
+      if (s.phase === 'MEMORIZE') {
+        logicRef.current._transitionToRecall()
+        setState(logicRef.current.getState())
+      }
     }, MEMORIZE_DURATION)
   }
 
   // Handle balloon selection during RECALL phase
   const handleSelect = (balloon) => {
+    const s = logicRef.current.getState()
     // Ignore selections during MEMORIZE phase
-    if (phase !== 'RECALL') return
+    if (s.phase !== 'RECALL') return
     if (success || wrong) return
 
-    const expectedIndex = playerInput.length
-    const expectedEmoji = BALLOON_SEQUENCE[expectedIndex]
+    const result = logicRef.current.handleSelection(balloon.emoji)
+    if (!result.allowed) return
+    setState(logicRef.current.getState())
 
-    if (balloon.emoji === expectedEmoji) {
-      // Correct selection
-      const newInput = [...playerInput, balloon.emoji]
-      setPlayerInput(newInput)
-
-      if (newInput.length === BALLOON_SEQUENCE.length) {
-        // Sequence complete!
-        setSuccess(true)
-        clearTimer()
-        confetti({
-          particleCount: 200,
-          spread: 120,
-          origin: { y: 0.5 },
-          colors: ['#d946ef', '#7c3aed', '#f43f5e', '#fbbf24', '#34d399', '#60a5fa'],
-          scalar: 1.2,
-        })
-        setTimeout(onComplete, 1600)
-      }
-    } else {
-      // Wrong selection
+    if (result.result === 'complete') {
+      setSuccess(true)
+      confetti({
+        particleCount: 200,
+        spread: 120,
+        origin: { y: 0.5 },
+        colors: ['#d946ef', '#7c3aed', '#f43f5e', '#fbbf24', '#34d399', '#60a5fa'],
+        scalar: 1.2,
+      })
+      setTimeout(onComplete, 1600)
+    } else if (result.result === 'incorrect') {
       setWrong(true)
-      clearTimer()
       setTimeout(() => {
         setWrong(false)
-        setPlayerInput([])
-        // Restart the game with a fresh memorize phase
+        setSuccess(false)
         startGame()
       }, 800)
     }
@@ -322,7 +326,7 @@ function Stage4({ onComplete }) {
   // Initialize on mount
   useEffect(() => {
     startGame()
-    return () => clearTimer() // Cleanup on unmount
+    return () => clearTimers() // Cleanup on unmount
   }, [])
 
   const BALLOON_COLORS = {
@@ -334,33 +338,23 @@ function Stage4({ onComplete }) {
     '#22c55e': '#4ade80',
   }
 
-  // Build display sequence: show actual during MEMORIZE, masked during RECALL
-  const displaySequence = phase === 'MEMORIZE' 
-    ? BALLOON_SEQUENCE 
-    : BALLOON_SEQUENCE.map((emoji, i) => (i < playerInput.length ? playerInput[i] : '❓'))
-
-  // Progress text for MEMORIZE phase
-  const memorizeProgress = phase === 'MEMORIZE' 
-    ? Math.max(0, MEMORIZE_DURATION - (Date.now() - phaseStartRef.current))
-    : 0
-
   return (
     <motion.div className="stage" key="stage4" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -50 }}>
       <div className="stage-card glass-card">
         <span className="stage-emoji">🎈</span>
         <h2 className="stage-title gradient-text">Memory Sequence Challenge!</h2>
         
-        {phase === 'MEMORIZE' && (
+        {state?.phase === 'MEMORIZE' && (
           <motion.p className="stage-subtitle" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             🧠 Memorize the sequence!
             <br />
             <span style={{ fontSize: '1.1rem', opacity: 0.8 }}>
-              Time: {(memorizeProgress / 1000).toFixed(1)}s
+              Time: {(state.timeRemaining / 1000).toFixed(1)}s
             </span>
           </motion.p>
         )}
 
-        {phase === 'RECALL' && (
+        {state?.phase === 'RECALL' && (
           <motion.p className="stage-subtitle" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             🎯 Now recall the sequence!
             <br />
@@ -385,13 +379,13 @@ function Stage4({ onComplete }) {
           }}
           role="status"
           aria-live="polite"
-          aria-label={phase === 'MEMORIZE' ? 'Sequence to memorize' : 'Your current progress'}
+          aria-label={state?.phase === 'MEMORIZE' ? 'Sequence to memorize' : 'Your current progress'}
         >
-          {displaySequence.map((emoji, i) => (
+          {logicRef.current.getDisplaySequence().map((emoji, i) => (
             <span 
               key={i} 
               style={{ 
-                opacity: phase === 'RECALL' && i >= playerInput.length ? 0.5 : 1,
+                opacity: state?.phase === 'RECALL' && i >= state?.playerInput.length ? 0.5 : 1,
                 transition: 'opacity 0.2s'
               }}
             >
@@ -400,7 +394,7 @@ function Stage4({ onComplete }) {
           ))}
         </div>
 
-        {phase === 'MEMORIZE' && (
+        {state?.phase === 'MEMORIZE' && (
           <div 
             style={{ 
               height: 4, 
@@ -410,7 +404,7 @@ function Stage4({ onComplete }) {
               marginBottom: 16
             }}
             role="progressbar"
-            aria-valuenow={Math.round((1 - memorizeProgress / MEMORIZE_DURATION) * 100)}
+            aria-valuenow={Math.round((1 - state.timeRemaining / MEMORIZE_DURATION) * 100)}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-label="Memorization time remaining"
@@ -423,7 +417,7 @@ function Stage4({ onComplete }) {
                 transition: 'width 0.1s linear'
               }}
               initial={{ width: '0%' }}
-              animate={{ width: `${(1 - memorizeProgress / MEMORIZE_DURATION) * 100}%` }}
+              animate={{ width: `${(1 - state.timeRemaining / MEMORIZE_DURATION) * 100}%` }}
             />
           </div>
         )}
@@ -433,22 +427,22 @@ function Stage4({ onComplete }) {
           {ALL_BALLOONS.map((b, i) => (
             <motion.div
               key={b.id}
-              className={`balloon${phase === 'RECALL' && playerInput.includes(b.emoji) ? ' selected' : ''}`}
+              className={`balloon${state?.phase === 'RECALL' && state?.playerInput.includes(b.emoji) ? ' selected' : ''}`}
               style={{
                 background: `radial-gradient(circle at 30% 30%, ${BALLOON_COLORS[b.color] || b.color}, ${b.color})`,
                 '--fdur': `${2.5 + i * 0.4}s`,
                 '--fdelay': `${i * 0.2}s`,
-                opacity: phase === 'RECALL' && wrong ? 0.6 : 1,
-                pointerEvents: phase === 'RECALL' && !wrong && !success ? 'auto' : 'none',
+                opacity: state?.phase === 'RECALL' && wrong ? 0.6 : 1,
+                pointerEvents: state?.phase === 'RECALL' && !wrong && !success ? 'auto' : 'none',
               }}
-              whileHover={phase === 'RECALL' && !wrong && !success ? { scale: 1.15, y: -8 } : {}}
-              whileTap={phase === 'RECALL' && !wrong && !success ? { scale: 0.8 } : {}}
+              whileHover={state?.phase === 'RECALL' && !wrong && !success ? { scale: 1.15, y: -8 } : {}}
+              whileTap={state?.phase === 'RECALL' && !wrong && !success ? { scale: 0.8 } : {}}
               onClick={() => handleSelect(b)}
-              tabIndex={phase === 'RECALL' && !wrong && !success ? 0 : -1}
-              onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && phase === 'RECALL') handleSelect(b); }}
+              tabIndex={state?.phase === 'RECALL' && !wrong && !success ? 0 : -1}
+              onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && state?.phase === 'RECALL') handleSelect(b); }}
               role="button"
               aria-label={`Balloon ${b.emoji}`}
-              aria-disabled={phase !== 'RECALL' || wrong || success}
+              aria-disabled={state?.phase !== 'RECALL' || wrong || success}
             >
               {b.emoji}
             </motion.div>
@@ -473,9 +467,9 @@ function Stage4({ onComplete }) {
         )}
 
         <p className="hint-text" style={{ marginTop: 16 }}>
-          {phase === 'MEMORIZE' 
+          {state?.phase === 'MEMORIZE' 
             ? `Memorize: ${BALLOON_SEQUENCE.join(' → ')}` 
-            : `Progress: ${playerInput.length}/${BALLOON_SEQUENCE.length}`}
+            : `Progress: ${state?.playerInput.length}/${BALLOON_SEQUENCE.length}`}
         </p>
       </div>
     </motion.div>
@@ -547,7 +541,7 @@ function RevealScreen() {
         <h1 className="reveal-title font-display glow-text">
           Happy Birthday,<br />Biko! 🎂
         </h1>
-        <p className="reveal-sub">You cracked all 5 — blue shirt, road kiss and all 👑💜</p>
+        <p className="reveal-sub">You cracked all 7 — blue shirt, road kiss and all 👑💜</p>
       </motion.div>
 
       {/* Flip card */}
@@ -680,7 +674,7 @@ function WelcomeScreen({ onStart }) {
       </p>
 
       <p style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.45)', marginBottom: 40 }}>
-        Solve 5 puzzles to unlock your birthday surprise 🔐<br />
+        Solve 7 puzzles to unlock your birthday surprise 🔐<br />
         <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.28)' }}>This one's personal 💜</span>
       </p>
 
@@ -695,7 +689,7 @@ function WelcomeScreen({ onStart }) {
       </motion.button>
 
       <p style={{ marginTop: 20, fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)' }}>
-        5 puzzles · Very personal · Worth every second 💕
+        7 puzzles · Very personal · Worth every second 💕
       </p>
     </motion.div>
   )
