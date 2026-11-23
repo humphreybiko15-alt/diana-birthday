@@ -3,18 +3,197 @@ import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { RunawayHeartStage, BlueShirtStage, FirstKissStage } from './LoveStages.jsx'
 import { MemorySequenceLogic } from './memorySequenceLogic.js'
+import {
+  compressState,
+  decompressState,
+  getShareableUrl,
+  parseUrlState,
+  updateUrlState,
+  DEFAULT_STATE
+} from './urlState.js'
+import StoryCardPreview from './StoryCardCanvas.jsx'
 
-/* ────────────────────────────────────────────────
-   STAGE 1: Letter Scramble — Unscramble "BIKO"
-─────────────────────────────────────────────── */
-const SCRAMBLED = ['B', 'I', 'K', 'O']
-const TARGET_WORD = 'BIKO'
+/* ═══════════════════════════════════════════════════════════════════════════════
+   DEFAULT VALUES (fallback when no URL hash state)
+   ═══════════════════════════════════════════════════════════════════════════════ */
 
-function Stage1({ onComplete }) {
+const DEFAULT_RECIPIENT_NAME = 'Biko'
+const DEFAULT_CUSTOM_MESSAGE = "You cracked all 7 — blue shirt, road kiss and all 👑💜"
+const DEFAULT_SCRAMBLED = ['B', 'I', 'K', 'O']
+const DEFAULT_TARGET_WORD = 'BIKO'
+const DEFAULT_BALLOON_SEQUENCE = ['🩷', '💜', '💛']
+const MEMORIZE_DURATION = 2500
+
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   CREATE YOUR OWN MODAL
+   ═══════════════════════════════════════════════════════════════════════════════════════ */
+
+function CreateYourOwnModal({ onClose, onCreate }) {
+  const [recipientName, setRecipientName] = useState(DEFAULT_RECIPIENT_NAME)
+  const [customMessage, setCustomMessage] = useState(DEFAULT_CUSTOM_MESSAGE)
+  const [customScramble, setCustomScramble] = useState(DEFAULT_TARGET_WORD)
+  const [showScramble, setShowScramble] = useState(false)
+  const [showMemory, setShowMemory] = useState(false)
+  const [memorySequence, setMemorySequence] = useState(DEFAULT_BALLOON_SEQUENCE.join(' → '))
+  const [isCreating, setIsCreating] = useState(false)
+
+  const handleCreate = (e) => {
+    e.preventDefault()
+    setIsCreating(true)
+
+    // Build custom state
+    const state = {
+      recipientName: recipientName.trim() || DEFAULT_RECIPIENT_NAME,
+      customMessage: customMessage.trim() || DEFAULT_CUSTOM_MESSAGE,
+      stages: [
+        { id: 1, type: 'scramble', targetWord: customScramble.trim().toUpperCase() || DEFAULT_TARGET_WORD, clue: `Spell out ${recipientName.trim() || DEFAULT_RECIPIENT_NAME}'s name!` },
+        { id: 2, type: 'year', clue: `What year was ${recipientName.trim() || DEFAULT_RECIPIENT_NAME} born?`, answerRange: [1980, 2010] },
+        { id: 3, type: 'emoji', emojis: '🌟 👑 🎉', question: 'What do these emojis represent?', options: ['Party Animal', 'Birthday Queen', 'Music Lover', 'Night Owl'], correctIndex: 1 },
+        { id: 4, type: 'memory', sequence: memorySequence.split(' → ').filter(Boolean).length > 0 ? memorySequence.split(' → ').map(s => s.trim()) : DEFAULT_BALLOON_SEQUENCE },
+        { id: 5, type: 'runaway' },
+        { id: 6, type: 'quiz', headline: "Test Your Memory 👀", emojiClue: '👕 🎨 💭', question: "What color was my shirt on our very first date?", options: ['Red', 'Blue', 'Black', 'White'], correctIndex: 1 },
+        { id: 7, type: 'quiz', headline: "Never Forget This One 💋", emojiClue: '💋 📍 🌙', question: "Where did we share our very first kiss?", options: ['At a restaurant', 'At home', 'On the road', 'At school'], correctIndex: 2 },
+      ],
+      createdAt: Date.now(),
+    }
+
+    // Compress to URL hash
+    const compressed = compressState(state)
+    const hashUrl = window.location.origin + window.location.pathname + '#' + compressed
+
+    setIsCreating(false)
+    onCreate(hashUrl, state)
+  }
+
+  return (
+    <motion.div
+      className="create-modal-overlay"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="create-modal"
+        onClick={e => e.stopPropagation()}
+        initial={{ scale: 0.8, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.8, y: 30 }}
+        transition={{ duration: 0.3 }}
+        role="dialog" aria-modal="true" aria-label="Create Your Own Birthday Game"
+      >
+        <div className="create-modal-header">
+          <h2 className="create-modal-title">🎨 Make One for Someone You Love</h2>
+          <button className="create-modal-close" onClick={onClose} aria-label="Close creator">✕</button>
+        </div>
+
+        <form onSubmit={handleCreate} className="create-form">
+          <div className="form-group">
+            <label className="form-label">Their Name</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="e.g. Sarah, Alex, Maya"
+              value={recipientName}
+              onChange={e => setRecipientName(e.target.value)}
+              maxLength={30}
+              autoFocus
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Custom Message (shown at the end)</label>
+            <textarea
+              className="form-textarea"
+              rows={3}
+              placeholder="Your special message here..."
+              value={customMessage}
+              onChange={e => setCustomMessage(e.target.value)}
+              maxLength={300}
+            />
+          </div>
+
+          <div className="form-options">
+            <label className="form-option">
+              <input
+                type="checkbox"
+                checked={showScramble}
+                onChange={() => setShowScramble(!showScramble)}
+              />
+              Customize the name scramble puzzle
+            </label>
+            <label className="form-option">
+              <input
+                type="checkbox"
+                checked={showMemory}
+                onChange={() => setShowMemory(!showMemory)}
+              />
+              Customize memory sequence balloons
+            </label>
+          </div>
+
+          {showScramble && (
+            <div className="form-group">
+              <label className="form-label">Name to Unscramble</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. SARAH"
+                value={customScramble}
+                onChange={e => setCustomScramble(e.target.value)}
+                maxLength={20}
+              />
+              <p className="form-hint">Leave blank to use their name automatically</p>
+            </div>
+          )}
+
+          {showMemory && (
+            <div className="form-group">
+              <label className="form-label">Memory Balloon Sequence</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="🩷 → 💜 → 💛 (or custom emojis)"
+                value={memorySequence}
+                onChange={e => setMemorySequence(e.target.value)}
+                maxLength={100}
+              />
+              <p className="form-hint">Separate balloons with " → " (e.g. 💙 → 💚 → 🧡)</p>
+            </div>
+          )}
+
+          <div className="create-actions">
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={isCreating}
+            >
+              {isCreating ? 'Creating...' : '🎁 Create & Get Shareable Link'}
+            </button>
+          </div>
+        </form>
+
+        <div className="create-modal-footer">
+          <p className="create-hint">
+            💡 Share the link via Instagram DM, WhatsApp, or iMessage — it's all client-side!
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   STAGE 1: Letter Scramble (dynamic name)
+   ═══════════════════════════════════════════════════════════════════════════════════════ */
+
+function Stage1({ onComplete, targetWord = DEFAULT_TARGET_WORD, scrambledLetters = null, clue }) {
+  const SCRAMBLED = scrambledLetters || [...targetWord].sort(() => Math.random() - 0.5)
+  const TARGET_WORD = targetWord
+
   const [tiles] = useState(SCRAMBLED)
   const [selected, setSelected] = useState([])
   const [answer, setAnswer] = useState([])
-  const [status, setStatus] = useState('idle') // idle | correct | wrong
+  const [status, setStatus] = useState('idle')
 
   const handleTileClick = (letter, idx) => {
     if (selected.includes(idx)) return
@@ -46,12 +225,11 @@ function Stage1({ onComplete }) {
     <motion.div className="stage" key="stage1" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -50 }}>
       <div className="stage-card glass-card">
         <span className="stage-emoji">🔤</span>
-        <h2 className="stage-title gradient-text">Who's the Birthday Star?</h2>
+        <h2 className="stage-title gradient-text">{clue || `Who's the Birthday Star?`}</h2>
         <p className="stage-subtitle">
-          Tap the letters in the right order to spell out her name!
+          Tap the letters in the right order to spell out their name!
         </p>
 
-        {/* Scrambled tiles */}
         <div className="scramble-tiles">
           {tiles.map((letter, idx) => (
             <motion.div
@@ -67,7 +245,6 @@ function Stage1({ onComplete }) {
           ))}
         </div>
 
-        {/* Answer slots */}
         <div className="answer-slots">
           {Array.from({ length: TARGET_WORD.length }).map((_, i) => (
             <motion.div
@@ -83,7 +260,7 @@ function Stage1({ onComplete }) {
 
         {status === 'correct' && (
           <motion.div className="success-badge" initial={{ scale: 0 }} animate={{ scale: 1 }}>
-            ✨ YES! That's her!
+            ✨ YES! That's them!
           </motion.div>
         )}
         {status === 'wrong' && (
@@ -98,12 +275,11 @@ function Stage1({ onComplete }) {
   )
 }
 
-/* ────────────────────────────────────────────────
-   STAGE 2: Birthday Math — What year was she born?
-   (Answer: user fills in — we accept 1990–2010 range
-    and show a cheeky message)
-─────────────────────────────────────────────── */
-function Stage2({ onComplete }) {
+/* ════════════════════════════════════════════════════════════════════════════════════════
+   STAGE 2: Birthday Math (dynamic name)
+   ════════════════════════════════════════════════════════════════════════════════════════ */
+
+function Stage2({ onComplete, recipientName = DEFAULT_RECIPIENT_NAME, yearClue }) {
   const [val, setVal] = useState('')
   const [status, setStatus] = useState('idle')
 
@@ -125,8 +301,8 @@ function Stage2({ onComplete }) {
         <span className="stage-emoji">🎂</span>
         <h2 className="stage-title gradient-text">The Magic Number</h2>
         <p className="stage-subtitle">
-          What year was Biko born? 📅<br />
-          <span style={{ fontSize: '0.9rem', opacity: 0.6 }}>(Go ahead, she won't admit it 😏)</span>
+          What year was {recipientName} born? 📅<br />
+          <span style={{ fontSize: '0.9rem', opacity: 0.6 }}>(Go ahead, they won't admit it 😏)</span>
         </p>
 
         <input
@@ -142,7 +318,7 @@ function Stage2({ onComplete }) {
 
         {status === 'correct' && (
           <motion.div className="success-badge" initial={{ scale: 0 }} animate={{ scale: 1 }}>
-            🎉 Locked in! She's forever young!
+            🎉 Locked in! They're forever young!
           </motion.div>
         )}
 
@@ -158,25 +334,24 @@ function Stage2({ onComplete }) {
   )
 }
 
-/* ────────────────────────────────────────────────
-   STAGE 3: Emoji Riddle — What do these emojis say?
-   🌟👑🎉 = "Birthday Queen"
-   Pick from 4 options
-─────────────────────────────────────────────── */
-const EMOJI_PUZZLE = {
-  emojis: '🌟 👑 🎉',
-  question: 'What do these emojis represent?',
-  options: [
-    { id: 'a', emoji: '💃', label: 'Party Animal' },
-    { id: 'b', emoji: '👑', label: 'Birthday Queen' },
-    { id: 'c', emoji: '🎵', label: 'Music Lover' },
-    { id: 'd', emoji: '🌙', label: 'Night Owl' },
-  ],
-  correctId: 'b',
-}
+/* ════════════════════════════════════════════════════════════════════════════════════════
+   STAGE 3: Emoji Riddle
+   ════════════════════════════════════════════════════════════════════════════════════════ */
 
 function Stage3({ onComplete }) {
   const [chosen, setChosen] = useState(null)
+
+  const EMOJI_PUZZLE = {
+    emojis: '🌟 👑 🎉',
+    question: 'What do these emojis represent?',
+    options: [
+      { id: 'a', emoji: '💃', label: 'Party Animal' },
+      { id: 'b', emoji: '👑', label: 'Birthday Queen' },
+      { id: 'c', emoji: '🎵', label: 'Music Lover' },
+      { id: 'd', emoji: '🌙', label: 'Night Owl' },
+    ],
+    correctId: 'b',
+  }
 
   const pick = (id) => {
     setChosen(id)
@@ -220,7 +395,7 @@ function Stage3({ onComplete }) {
         )}
         {chosen === EMOJI_PUZZLE.correctId && (
           <motion.div className="success-badge" initial={{ scale: 0 }} animate={{ scale: 1 }}>
-            👑 She IS the Birthday Queen!
+            👑 They ARE the Birthday Queen!
           </motion.div>
         )}
       </div>
@@ -228,11 +403,10 @@ function Stage3({ onComplete }) {
   )
 }
 
-/* ────────────────────────────────────────────────
-   STAGE 4: Memory Sequence — Memorize & Recall Balloon Order
-   Two-phase gameplay: MEMORIZE (2.5s) → RECALL (hidden sequence)
-─────────────────────────────────────────────── */
-const BALLOON_SEQUENCE = ['🩷', '💜', '💛']
+/* ════════════════════════════════════════════════════════════════════════════════════════
+   STAGE 4: Memory Sequence (dynamic balloons)
+   ════════════════════════════════════════════════════════════════════════════════════════ */
+
 const ALL_BALLOONS = [
   { id: 0, emoji: '🩷', color: '#f43f5e' },
   { id: 1, emoji: '🧡', color: '#f97316' },
@@ -242,20 +416,17 @@ const ALL_BALLOONS = [
   { id: 5, emoji: '💚', color: '#22c55e' },
 ]
 
-const MEMORIZE_DURATION = 2500 // 2.5 seconds
-
-function Stage4({ onComplete }) {
-  const [state, setState] = useState(null) // { phase, playerInput, ... }
+function Stage4({ onComplete, sequence = DEFAULT_BALLOON_SEQUENCE }) {
+  const [state, setState] = useState(null)
   const [wrong, setWrong] = useState(false)
   const [success, setSuccess] = useState(false)
 
-  const timerRef = useRef(null)   // memorize setTimeout
-  const tickRef = useRef(null)    // progress re-render interval
-  const gameIdRef = useRef(0)     // Track game session to prevent stale callbacks
+  const timerRef = useRef(null)
+  const tickRef = useRef(null)
+  const gameIdRef = useRef(0)
 
-  const logicRef = useRef(new MemorySequenceLogic(BALLOON_SEQUENCE, MEMORIZE_DURATION))
+  const logicRef = useRef(new MemorySequenceLogic(sequence, MEMORIZE_DURATION))
 
-  // Clear all timers
   const clearTimers = () => {
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current)
@@ -267,20 +438,16 @@ function Stage4({ onComplete }) {
     }
   }
 
-  // Start a fresh game session
   const startGame = useCallback((onComplete) => {
     clearTimers()
     const currentGameId = ++gameIdRef.current
-    
-    // Use the logic's start() with callbacks instead of restart() + manual timer
+
     logicRef.current.start(
       (_phase) => {
-        // onPhaseChange callback
         if (gameIdRef.current !== currentGameId) return
         setState(logicRef.current.getState())
       },
       () => {
-        // onComplete callback
         if (gameIdRef.current !== currentGameId) return
         setSuccess(true)
         confetti({
@@ -293,7 +460,6 @@ function Stage4({ onComplete }) {
         setTimeout(onComplete, 1600)
       },
       () => {
-        // onFail callback
         if (gameIdRef.current !== currentGameId) return
         setWrong(true)
         setTimeout(() => {
@@ -303,10 +469,9 @@ function Stage4({ onComplete }) {
         }, 800)
       }
     )
-    
+
     setState(logicRef.current.getState())
 
-    // Re-render tick during MEMORIZE so progress bar / time animate smoothly
     tickRef.current = setInterval(() => {
       if (logicRef.current.getState().phase === 'MEMORIZE') {
         setState(logicRef.current.getState())
@@ -314,23 +479,19 @@ function Stage4({ onComplete }) {
     }, 50)
   }, [])
 
-  // Handle balloon selection during RECALL phase
   const handleSelect = (balloon) => {
     const s = logicRef.current.getState()
-    // Ignore selections during MEMORIZE phase
     if (s.phase !== 'RECALL') return
     if (success || wrong) return
 
     const result = logicRef.current.handleSelection(balloon.emoji)
     if (!result.allowed) return
     setState(logicRef.current.getState())
-    // Success/failure is now handled via callbacks in startGame()
   }
 
-  // Initialize on mount
   useEffect(() => {
     startGame(onComplete)
-    return () => clearTimers() // Cleanup on unmount
+    return () => clearTimers()
   }, [startGame, onComplete])
 
   const BALLOON_COLORS = {
@@ -347,7 +508,7 @@ function Stage4({ onComplete }) {
       <div className="stage-card glass-card">
         <span className="stage-emoji">🎈</span>
         <h2 className="stage-title gradient-text">Memory Sequence Challenge!</h2>
-        
+
         {state?.phase === 'MEMORIZE' && (
           <motion.p className="stage-subtitle" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             🧠 Memorize the sequence!
@@ -368,12 +529,11 @@ function Stage4({ onComplete }) {
           </motion.p>
         )}
 
-        {/* Target sequence display */}
-        <div 
-          className="sequence-display" 
-          style={{ 
-            fontSize: '2rem', 
-            letterSpacing: '8px', 
+        <div
+          className="sequence-display"
+          style={{
+            fontSize: '2rem',
+            letterSpacing: '8px',
             margin: '16px 0',
             minHeight: '48px',
             display: 'flex',
@@ -386,9 +546,9 @@ function Stage4({ onComplete }) {
           aria-label={state?.phase === 'MEMORIZE' ? 'Sequence to memorize' : 'Your current progress'}
         >
           {logicRef.current.getDisplaySequence().map((emoji, i) => (
-            <span 
-              key={i} 
-              style={{ 
+            <span
+              key={i}
+              style={{
                 opacity: state?.phase === 'RECALL' && i >= state?.playerInput.length ? 0.5 : 1,
                 transition: 'opacity 0.2s'
               }}
@@ -399,19 +559,18 @@ function Stage4({ onComplete }) {
         </div>
 
         {state?.phase === 'MEMORIZE' && (
-          <div 
-            style={{ 
-              height: 4, 
-              background: 'rgba(255,255,255,0.2)', 
-              borderRadius: 2, 
-              overflow: 'hidden',
-              marginBottom: 16
-            }}
-            role="progressbar"
-            aria-valuenow={Math.round((1 - state.timeRemaining / MEMORIZE_DURATION) * 100)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label="Memorization time remaining"
+          <div style={{
+            height: 4,
+            background: 'rgba(255,255,255,0.2)',
+            borderRadius: 2,
+            overflow: 'hidden',
+            marginBottom: 16
+          }}
+          role="progressbar"
+          aria-valuenow={Math.round((1 - state.timeRemaining / MEMORIZE_DURATION) * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Memorization time remaining"
           >
             <motion.div
               style={{
@@ -426,7 +585,6 @@ function Stage4({ onComplete }) {
           </div>
         )}
 
-        {/* Selection grid - only interactive during RECALL */}
         <div className="balloons-grid" role="group" aria-label="Balloon selection">
           {ALL_BALLOONS.map((b, i) => (
             <motion.div
@@ -454,9 +612,9 @@ function Stage4({ onComplete }) {
         </div>
 
         {wrong && (
-          <motion.p 
-            style={{ color: '#f43f5e', fontWeight: 700 }} 
-            initial={{ opacity: 0, scale: 0.9 }} 
+          <motion.p
+            style={{ color: '#f43f5e', fontWeight: 700 }}
+            initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             role="alert"
             aria-live="assertive"
@@ -471,25 +629,28 @@ function Stage4({ onComplete }) {
         )}
 
         <p className="hint-text" style={{ marginTop: 16 }}>
-          {state?.phase === 'MEMORIZE' 
-            ? `Memorize: ${BALLOON_SEQUENCE.join(' → ')}` 
-            : `Progress: ${state?.playerInput.length}/${BALLOON_SEQUENCE.length}`}
+          {state?.phase === 'MEMORIZE'
+            ? `Memorize: ${sequence.join(' → ')}`
+            : `Progress: ${state?.playerInput.length}/${sequence.length}`}
         </p>
       </div>
     </motion.div>
   )
 }
 
-/* ────────────────────────────────────────────────
-   FINAL REVEAL SCREEN
-─────────────────────────────────────────────── */
-function RevealScreen() {
+/* ════════════════════════════════════════════════════════════════════════════════════════
+   FINAL REVEAL SCREEN (dynamic name + message + share)
+   ════════════════════════════════════════════════════════════════════════════════════════ */
+
+function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = DEFAULT_CUSTOM_MESSAGE, onShare, onCreateStoryCard }) {
   const [flipped, setFlipped] = useState(false)
   const [showMessage, setShowMessage] = useState(false)
   const [blasted, setBlasted] = useState(false)
+  const [shareUrl, setShareUrl] = useState('')
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [showStoryCard, setShowStoryCard] = useState(false)
 
   useEffect(() => {
-    // Big confetti blast on mount
     const blast = () => {
       confetti({
         particleCount: 180,
@@ -511,6 +672,17 @@ function RevealScreen() {
     return () => clearTimeout(t)
   }, [])
 
+  useEffect(() => {
+    // Compress current state to share URL after reveal
+    const state = {
+      recipientName,
+      customMessage,
+      createdAt: Date.now(),
+    }
+    const url = getShareableUrl(state)
+    setShareUrl(url)
+  }, [recipientName, customMessage])
+
   const handleCardClick = () => {
     if (!flipped) {
       setFlipped(true)
@@ -529,6 +701,12 @@ function RevealScreen() {
     }
   }
 
+  const copyShareLink = () => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      // Could add toast notification
+    })
+  }
+
   return (
     <motion.div
       className="stage reveal-screen"
@@ -543,47 +721,41 @@ function RevealScreen() {
         transition={{ delay: 0.3 }}
       >
         <h1 className="reveal-title font-display glow-text">
-          Happy Birthday,<br />Biko! 🎂
+          Happy Birthday,<br />{recipientName}! 🎂
         </h1>
         <p className="reveal-sub">You cracked all 7 — blue shirt, road kiss and all 👑💜</p>
       </motion.div>
 
-      {/* Flip card */}
-      <motion.div
+      <div
         className="gift-card-scene"
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6, duration: 0.7 }}
-        onClick={handleCardClick}
-        title="Tap to reveal your gift!"
+        style={{ perspective: 1000, width: '100%', height: 340, margin: '30px auto', position: 'relative' }}
       >
-        <div className={`gift-card-inner${flipped ? ' flipped' : ''}`}>
-          {/* Front face */}
+        <motion.div
+          className="gift-card"
+          initial={{ rotateY: 0 }}
+          animate={{ rotateY: flipped ? 180 : 0 }}
+          transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '100%',
+            transformStyle: 'preserve-3d',
+            cursor: 'pointer',
+          }}
+          onClick={handleCardClick}
+        >
           <div className="gift-card-face gift-card-front">
-            <motion.div
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-            >
-              <div className="card-name">Biko ✨</div>
-              <div className="card-subtitle" style={{ marginBottom: 16 }}>Your Birthday Surprise</div>
-              <div style={{ fontSize: '3rem' }}>🎁</div>
-              <div className="card-subtitle" style={{ marginTop: 12, fontSize: '0.8rem' }}>
-                Tap to unwrap →
-              </div>
-            </motion.div>
+            <div style={{ fontSize: '4rem', marginBottom: 12 }}>🎁</div>
+            <div className="card-name">{recipientName}</div>
+            <div className="card-subtitle">A Special Gift Just For You</div>
           </div>
-
-          {/* Back face */}
           <div className="gift-card-face gift-card-back">
-            <div className="mpesa-cta">🟢 Check your M-Pesa</div>
-            <span className="mpesa-amount">KES 1,000</span>
-            <div style={{ fontSize: '1.6rem', margin: '6px 0' }}>💸</div>
-            <div className="mpesa-note">
-              It's already in your inbox — just for you, just because you deserve every cent of it 💜
-            </div>
+            <div style={{ fontSize: '3rem', marginBottom: 12 }}>💜</div>
+            <div className="card-name">It Was Always You</div>
+            <div className="card-subtitle">Open to see your surprise</div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
 
       {!flipped && (
         <motion.p
@@ -605,13 +777,7 @@ function RevealScreen() {
         >
           <div style={{ fontSize: '1.6rem', marginBottom: 12 }}>💌</div>
           <p style={{ fontSize: '1.05rem', lineHeight: 1.85, color: 'rgba(255,255,255,0.88)' }}>
-            Biko — two years is a long time to spend apart from someone you love. 
-            But here we are, back where we should've never left. 🕊️
-            <br /><br />
-            From that first date in the blue shirt, to the kiss on the road that neither of us planned — 
-            every memory with you is one I kept safe. 💙
-            <br /><br />
-            Happy birthday, love. May this year be the beginning of everything beautiful — together. 🎂✨
+            {customMessage}
           </p>
           <div style={{ marginTop: 20, fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' }}>
             Made with every bit of 💜 — just for you
@@ -639,16 +805,87 @@ function RevealScreen() {
           >
             🎊 More Confetti!
           </button>
+
+          <button
+            className="btn-secondary"
+            onClick={() => setShowShareModal(true)}
+          >
+            🔗 Share Link
+          </button>
+
+          <button
+            className="btn-secondary"
+            onClick={() => setShowStoryCard(true)}
+          >
+            📱 Story Card
+          </button>
+
+          <button
+            className="btn-secondary"
+            onClick={() => {
+              setScreen('welcome')
+            }}
+          >
+            🔄 Play Again
+          </button>
         </motion.div>
+      )}
+
+      {/* Share Link Modal */}
+      {showShareModal && (
+        <motion.div
+          className="create-modal-overlay"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={() => setShowShareModal(false)}
+        >
+          <motion.div
+            className="create-modal"
+            onClick={e => e.stopPropagation()}
+            initial={{ scale: 0.8, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.8, y: 30 }}
+          >
+            <div className="create-modal-header">
+              <h2 className="create-modal-title">🔗 Share Your Game</h2>
+              <button className="create-modal-close" onClick={() => setShowShareModal(false)}>✕</button>
+            </div>
+            <div className="share-content">
+              <input
+                className="share-url-input"
+                value={shareUrl}
+                readOnly
+              />
+              <button className="btn-primary" onClick={copyShareLink}>
+                📋 Copy Link
+              </button>
+            </div>
+            <p className="create-hint">
+              Paste this link anywhere — it opens the same game with your custom settings!
+            </p>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Story Card Preview */}
+      {showStoryCard && (
+        <StoryCardPreview
+          params={{
+            recipientName,
+            score: 7,
+            maxScore: 7,
+            customMessage,
+            shareUrl,
+          }}
+          onClose={() => setShowStoryCard(false)}
+        />
       )}
     </motion.div>
   )
 }
 
-/* ────────────────────────────────────────────────
-   WELCOME SCREEN
-─────────────────────────────────────────────── */
-function WelcomeScreen({ onStart }) {
+/* ════════════════════════════════════════════════════════════════════════════════════════
+   WELCOME SCREEN (dynamic name)
+   ════════════════════════════════════════════════════════════════════════════════════════ */
+
+function WelcomeScreen({ onStart, recipientName = DEFAULT_RECIPIENT_NAME, onCreate }) {
   return (
     <motion.div
       className="stage"
@@ -673,7 +910,7 @@ function WelcomeScreen({ onStart }) {
       </h1>
 
       <p style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.7)', marginBottom: 12, lineHeight: 1.7 }}>
-        Hey Biko 👋 Someone who cares about you<br />
+        Hey {recipientName} 👋 Someone who cares about you<br />
         prepared something extra special today.
       </p>
 
@@ -692,16 +929,22 @@ function WelcomeScreen({ onStart }) {
         🎁 Open My Gift
       </motion.button>
 
-      <p style={{ marginTop: 20, fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)' }}>
-        7 puzzles · Very personal · Worth every second 💕
-      </p>
+      <div style={{ marginTop: 24, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <button className="btn-secondary" onClick={onCreate}>
+          🎨 Make One for Someone You Love
+        </button>
+        <p style={{ marginTop: 20, fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)' }}>
+          7 puzzles · Very personal · Worth every second 💕
+        </p>
+      </div>
     </motion.div>
   )
 }
 
-/* ────────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════════════════════════════════
    STAR FIELD BACKGROUND
-─────────────────────────────────────────────── */
+   ════════════════════════════════════════════════════════════════════════════════════════ */
+
 function StarField() {
   const stars = Array.from({ length: 60 }, (_, i) => ({
     id: i,
@@ -732,9 +975,10 @@ function StarField() {
   )
 }
 
-/* ────────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════════════════════════════════
    FLOATING PARTICLES
-─────────────────────────────────────────────── */
+   ════════════════════════════════════════════════════════════════════════════════════════ */
+
 const PARTY_EMOJIS = ['🎉', '✨', '🎊', '⭐', '💜', '🌟', '🎈', '🦋', '💫', '🌸']
 function Particles() {
   const particles = Array.from({ length: 18 }, (_, i) => ({
@@ -768,9 +1012,10 @@ function Particles() {
   )
 }
 
-/* ────────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════════════════════════════════
    PROGRESS DOTS
-─────────────────────────────────────────────── */
+   ════════════════════════════════════════════════════════════════════════════════════════ */
+
 function ProgressDots({ current, total }) {
   return (
     <div className="progress-track" style={{ zIndex: 2, position: 'relative' }}>
@@ -784,15 +1029,31 @@ function ProgressDots({ current, total }) {
   )
 }
 
-/* ────────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════════════════════════════════
    MAIN APP
-─────────────────────────────────────────────── */
+   ════════════════════════════════════════════════════════════════════════════════════════ */
+
 export default function App() {
   const [screen, setScreen] = useState('welcome') // welcome | puzzle | reveal
   const [stage, setStage] = useState(0)
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [shareUrl, setShareUrl] = useState('')
+  const [gameState, setGameState] = useState(null)
 
   const STAGES = [Stage1, Stage2, Stage3, Stage4, RunawayHeartStage, BlueShirtStage, FirstKissStage]
   const CurrentStage = STAGES[stage]
+
+  // Parse URL hash on mount for shared state
+  useEffect(() => {
+    const parsed = parseUrlState()
+    if (parsed) {
+      setGameState(parsed)
+      // Don't auto-start — user still clicks "Open My Gift"
+    }
+  }, [])
+
+  const recipientName = gameState?.recipientName || DEFAULT_RECIPIENT_NAME
+  const customMessage = gameState?.customMessage || DEFAULT_CUSTOM_MESSAGE
 
   const nextStage = () => {
     if (stage < STAGES.length - 1) {
@@ -802,6 +1063,13 @@ export default function App() {
     }
   }
 
+  const handleCreate = useCallback((url, state) => {
+    setShareUrl(url)
+    setGameState(state)
+    setCreateModalOpen(false)
+    setScreen('puzzle')
+  }, [])
+
   return (
     <div className="app-container">
       <StarField />
@@ -809,7 +1077,12 @@ export default function App() {
 
       <AnimatePresence mode="wait">
         {screen === 'welcome' && (
-          <WelcomeScreen key="welcome" onStart={() => setScreen('puzzle')} />
+          <WelcomeScreen
+            key="welcome"
+            recipientName={recipientName}
+            onStart={() => setScreen('puzzle')}
+            onCreate={() => setCreateModalOpen(true)}
+          />
         )}
 
         {screen === 'puzzle' && (
@@ -819,15 +1092,33 @@ export default function App() {
           >
             <ProgressDots current={stage} total={STAGES.length} />
             <AnimatePresence mode="wait">
-              <CurrentStage key={`stage-${stage}`} onComplete={nextStage} />
+              <CurrentStage
+                key={`stage-${stage}`}
+                onComplete={nextStage}
+                recipientName={recipientName}
+                customMessage={customMessage}
+              />
             </AnimatePresence>
           </motion.div>
         )}
 
         {screen === 'reveal' && (
-          <RevealScreen key="reveal" />
+          <RevealScreen
+            key="reveal"
+            recipientName={recipientName}
+            customMessage={customMessage}
+            shareUrl={shareUrl}
+          />
         )}
       </AnimatePresence>
+
+      {/* Create Your Own Modal */}
+      {createModalOpen && (
+        <CreateYourOwnModal
+          onClose={() => setCreateModalOpen(false)}
+          onCreate={handleCreate}
+        />
+      )}
     </div>
   )
 }
