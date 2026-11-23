@@ -62,13 +62,13 @@ function CreateYourOwnModal({ onClose, onCreate }) {
       className="create-modal-overlay"
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       onClick={onClose}
+      role="dialog" aria-modal="true" aria-label="Create Your Own Birthday Game"
     >
       <motion.div
-        className="create-modal"
+        className="create-modal-card"
         onClick={e => e.stopPropagation()}
-        initial={{ scale: 0.8, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.8, y: 30 }}
-        transition={{ duration: 0.3 }}
-        role="dialog" aria-modal="true" aria-label="Create Your Own Birthday Game"
+        initial={{ scale: 0.9, y: 20, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.9, y: 20, opacity: 0 }}
+        transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
       >
         <div className="create-modal-header">
           <h2 className="create-modal-title">🎨 Make One for Someone You Love</h2>
@@ -77,8 +77,9 @@ function CreateYourOwnModal({ onClose, onCreate }) {
 
         <form onSubmit={handleCreate} className="create-form">
           <div className="form-group">
-            <label className="form-label">Their Name</label>
+            <label className="form-label" htmlFor="recipientName">Their Name</label>
             <input
+              id="recipientName"
               type="text"
               className="form-input"
               placeholder="e.g. Sarah, Alex, Maya"
@@ -90,8 +91,9 @@ function CreateYourOwnModal({ onClose, onCreate }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Custom Message (shown at the end)</label>
+            <label className="form-label" htmlFor="customMessage">Custom Message (shown at the end)</label>
             <textarea
+              id="customMessage"
               className="form-textarea"
               rows={3}
               placeholder="Your special message here..."
@@ -101,29 +103,35 @@ function CreateYourOwnModal({ onClose, onCreate }) {
             />
           </div>
 
-          <div className="form-options">
-            <label className="form-option">
+          <fieldset className="form-options">
+            <legend className="form-options-title">Optional Customizations</legend>
+            <div className="form-option">
               <input
                 type="checkbox"
+                id="showScramble"
+                className="form-checkbox"
                 checked={showScramble}
                 onChange={() => setShowScramble(!showScramble)}
               />
-              Customize the name scramble puzzle
-            </label>
-            <label className="form-option">
+              <label htmlFor="showScramble" className="form-option-label">Customize the name scramble puzzle</label>
+            </div>
+            <div className="form-option">
               <input
                 type="checkbox"
+                id="showMemory"
+                className="form-checkbox"
                 checked={showMemory}
                 onChange={() => setShowMemory(!showMemory)}
               />
-              Customize memory sequence balloons
-            </label>
-          </div>
+              <label htmlFor="showMemory" className="form-option-label">Customize memory sequence balloons</label>
+            </div>
+          </fieldset>
 
           {showScramble && (
             <div className="form-group">
-              <label className="form-label">Name to Unscramble</label>
+              <label className="form-label" htmlFor="customScramble">Name to Unscramble</label>
               <input
+                id="customScramble"
                 type="text"
                 className="form-input"
                 placeholder="e.g. SARAH"
@@ -137,8 +145,9 @@ function CreateYourOwnModal({ onClose, onCreate }) {
 
           {showMemory && (
             <div className="form-group">
-              <label className="form-label">Memory Balloon Sequence</label>
+              <label className="form-label" htmlFor="memorySequence">Memory Balloon Sequence</label>
               <input
+                id="memorySequence"
                 type="text"
                 className="form-input"
                 placeholder="🩷 → 💜 → 💛 (or custom emojis)"
@@ -827,11 +836,13 @@ function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = 
           className="create-modal-overlay"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           onClick={() => setShowShareModal(false)}
+          role="dialog" aria-modal="true" aria-label="Share Your Game"
         >
           <motion.div
-            className="create-modal"
+            className="create-modal-card"
             onClick={e => e.stopPropagation()}
-            initial={{ scale: 0.8, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.8, y: 30 }}
+            initial={{ scale: 0.9, y: 20, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.9, y: 20, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
           >
             <div className="create-modal-header">
               <h2 className="create-modal-title">🔗 Share Your Game</h2>
