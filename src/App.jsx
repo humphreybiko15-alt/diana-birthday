@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { RunawayHeartStage, BlueShirtStage, FirstKissStage } from './LoveStages.jsx'
@@ -268,10 +268,42 @@ function Stage4({ onComplete }) {
   }
 
   // Start a fresh game session
-  const startGame = () => {
+  const startGame = useCallback((onComplete) => {
     clearTimers()
     const currentGameId = ++gameIdRef.current
-    logicRef.current.restart()
+    
+    // Use the logic's start() with callbacks instead of restart() + manual timer
+    logicRef.current.start(
+      (_phase) => {
+        // onPhaseChange callback
+        if (gameIdRef.current !== currentGameId) return
+        setState(logicRef.current.getState())
+      },
+      () => {
+        // onComplete callback
+        if (gameIdRef.current !== currentGameId) return
+        setSuccess(true)
+        confetti({
+          particleCount: 200,
+          spread: 120,
+          origin: { y: 0.5 },
+          colors: ['#d946ef', '#7c3aed', '#f43f5e', '#fbbf24', '#34d399', '#60a5fa'],
+          scalar: 1.2,
+        })
+        setTimeout(onComplete, 1600)
+      },
+      () => {
+        // onFail callback
+        if (gameIdRef.current !== currentGameId) return
+        setWrong(true)
+        setTimeout(() => {
+          setWrong(false)
+          setSuccess(false)
+          startGame(onComplete)
+        }, 800)
+      }
+    )
+    
     setState(logicRef.current.getState())
 
     // Re-render tick during MEMORIZE so progress bar / time animate smoothly
@@ -280,17 +312,7 @@ function Stage4({ onComplete }) {
         setState(logicRef.current.getState())
       }
     }, 50)
-
-    // Auto-transition to RECALL after memorize duration
-    timerRef.current = setTimeout(() => {
-      if (gameIdRef.current !== currentGameId) return
-      const s = logicRef.current.getState()
-      if (s.phase === 'MEMORIZE') {
-        logicRef.current._transitionToRecall()
-        setState(logicRef.current.getState())
-      }
-    }, MEMORIZE_DURATION)
-  }
+  }, [])
 
   // Handle balloon selection during RECALL phase
   const handleSelect = (balloon) => {
@@ -302,32 +324,14 @@ function Stage4({ onComplete }) {
     const result = logicRef.current.handleSelection(balloon.emoji)
     if (!result.allowed) return
     setState(logicRef.current.getState())
-
-    if (result.result === 'complete') {
-      setSuccess(true)
-      confetti({
-        particleCount: 200,
-        spread: 120,
-        origin: { y: 0.5 },
-        colors: ['#d946ef', '#7c3aed', '#f43f5e', '#fbbf24', '#34d399', '#60a5fa'],
-        scalar: 1.2,
-      })
-      setTimeout(onComplete, 1600)
-    } else if (result.result === 'incorrect') {
-      setWrong(true)
-      setTimeout(() => {
-        setWrong(false)
-        setSuccess(false)
-        startGame()
-      }, 800)
-    }
+    // Success/failure is now handled via callbacks in startGame()
   }
 
   // Initialize on mount
   useEffect(() => {
-    startGame()
+    startGame(onComplete)
     return () => clearTimers() // Cleanup on unmount
-  }, [])
+  }, [startGame, onComplete])
 
   const BALLOON_COLORS = {
     '#f43f5e': '#ff6b8a',
