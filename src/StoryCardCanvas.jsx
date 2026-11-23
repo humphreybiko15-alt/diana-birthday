@@ -296,7 +296,6 @@ export function generateStoryCard(params) {
  */
 export function useStoryCard() {
   const [isGenerating, setIsGenerating] = useState(false);
-  const canvasRef = useRef(null);
   
   const generateAndDownload = useCallback(async (params) => {
     setIsGenerating(true);
@@ -339,7 +338,7 @@ export function useStoryCard() {
  */
 export function StoryCardPreview({ params, onClose, onDownload }) {
   const canvasRef = useRef(null);
-  const { generateForPreview, isGenerating } = useStoryCard();
+  const { generateForPreview, generateAndDownload, isGenerating } = useStoryCard();
   
   useEffect(() => {
     if (canvasRef.current) {
@@ -350,7 +349,6 @@ export function StoryCardPreview({ params, onClose, onDownload }) {
   }, [params, generateForPreview]);
   
   const handleDownload = () => {
-    const { generateAndDownload } = useStoryCard();
     generateAndDownload(params).then(success => {
       if (success && onDownload) onDownload();
     });

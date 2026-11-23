@@ -3,14 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { RunawayHeartStage, BlueShirtStage, FirstKissStage } from './LoveStages.jsx'
 import { MemorySequenceLogic } from './memorySequenceLogic.js'
-import {
-  compressState,
-  decompressState,
-  getShareableUrl,
-  parseUrlState,
-  updateUrlState,
-  DEFAULT_STATE
-} from './urlState.js'
+import { compressState, getShareableUrl, parseUrlState } from './urlState.js'
 import StoryCardPreview from './StoryCardCanvas.jsx'
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -19,7 +12,6 @@ import StoryCardPreview from './StoryCardCanvas.jsx'
 
 const DEFAULT_RECIPIENT_NAME = 'Biko'
 const DEFAULT_CUSTOM_MESSAGE = "You cracked all 7 — blue shirt, road kiss and all 👑💜"
-const DEFAULT_SCRAMBLED = ['B', 'I', 'K', 'O']
 const DEFAULT_TARGET_WORD = 'BIKO'
 const DEFAULT_BALLOON_SEQUENCE = ['🩷', '💜', '💛']
 const MEMORIZE_DURATION = 2500
@@ -279,7 +271,7 @@ function Stage1({ onComplete, targetWord = DEFAULT_TARGET_WORD, scrambledLetters
    STAGE 2: Birthday Math (dynamic name)
    ════════════════════════════════════════════════════════════════════════════════════════ */
 
-function Stage2({ onComplete, recipientName = DEFAULT_RECIPIENT_NAME, yearClue }) {
+function Stage2({ onComplete, recipientName = DEFAULT_RECIPIENT_NAME }) {
   const [val, setVal] = useState('')
   const [status, setStatus] = useState('idle')
 
@@ -642,7 +634,7 @@ function Stage4({ onComplete, sequence = DEFAULT_BALLOON_SEQUENCE }) {
    FINAL REVEAL SCREEN (dynamic name + message + share)
    ════════════════════════════════════════════════════════════════════════════════════════ */
 
-function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = DEFAULT_CUSTOM_MESSAGE, onShare, onCreateStoryCard }) {
+function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = DEFAULT_CUSTOM_MESSAGE, onPlayAgain }) {
   const [flipped, setFlipped] = useState(false)
   const [showMessage, setShowMessage] = useState(false)
   const [blasted, setBlasted] = useState(false)
@@ -822,9 +814,7 @@ function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = 
 
           <button
             className="btn-secondary"
-            onClick={() => {
-              setScreen('welcome')
-            }}
+            onClick={onPlayAgain}
           >
             🔄 Play Again
           </button>
@@ -1108,6 +1098,7 @@ export default function App() {
             recipientName={recipientName}
             customMessage={customMessage}
             shareUrl={shareUrl}
+            onPlayAgain={() => setScreen('welcome')}
           />
         )}
       </AnimatePresence>
