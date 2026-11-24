@@ -90,9 +90,19 @@ export class MemorySequenceLogic {
     }
   }
 
-  restart() {
+  restart(onPhaseChange, onComplete, onFail) {
+    // Preserve callbacks if not provided (allows restart without re-registering)
+    const nextPhaseChange = onPhaseChange ?? this.onPhaseChange;
+    const nextComplete = onComplete ?? this.onComplete;
+    const nextFail = onFail ?? this.onFail;
+
     this._clearTimer();
     this.reset();
+    // Restore callbacks after reset
+    this.onPhaseChange = nextPhaseChange;
+    this.onComplete = nextComplete;
+    this.onFail = nextFail;
+
     // Restart a fresh memorize phase
     this.phase = 'MEMORIZE';
     this.phaseStartTime = Date.now();
