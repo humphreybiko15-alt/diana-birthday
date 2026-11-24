@@ -417,7 +417,7 @@ const ALL_BALLOONS = [
   { id: 5, emoji: '💚', color: '#22c55e' },
 ]
 
-function Stage4({ onComplete, sequence = DEFAULT_BALLOON_SEQUENCE }) {
+function Stage4({ onComplete, onFail, sequence = DEFAULT_BALLOON_SEQUENCE }) {
   const [state, setState] = useState(null)
   const [wrong, setWrong] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -463,6 +463,7 @@ function Stage4({ onComplete, sequence = DEFAULT_BALLOON_SEQUENCE }) {
       () => {
         if (gameIdRef.current !== currentGameId) return
         setWrong(true)
+        if (onFail) onFail()
         setTimeout(() => {
           setWrong(false)
           setSuccess(false)
@@ -478,7 +479,7 @@ function Stage4({ onComplete, sequence = DEFAULT_BALLOON_SEQUENCE }) {
         setState(logicRef.current.getState())
       }
     }, 50)
-  }, [])
+  }, [onFail])
 
   const handleSelect = (balloon) => {
     const s = logicRef.current.getState()
@@ -643,7 +644,7 @@ function Stage4({ onComplete, sequence = DEFAULT_BALLOON_SEQUENCE }) {
    FINAL REVEAL SCREEN (dynamic name + message + share)
    ════════════════════════════════════════════════════════════════════════════════════════ */
 
-function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = DEFAULT_CUSTOM_MESSAGE, onPlayAgain }) {
+function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = DEFAULT_CUSTOM_MESSAGE, onPlayAgain, mode = 'single', currentPlayer = 1, playerResults = { 1: null, 2: null } }) {
   const [flipped, setFlipped] = useState(false)
   const [showMessage, setShowMessage] = useState(false)
   const [blasted, setBlasted] = useState(false)
@@ -721,44 +722,58 @@ function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = 
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <h1 className="reveal-title font-display glow-text">
-          Happy Birthday,<br />{recipientName}! 🎂
-        </h1>
-        <p className="reveal-sub">You cracked all 7 — blue shirt, road kiss and all 👑💜</p>
+        {mode === 'passAndPlay' ? (
+          <>
+            <h1 className="reveal-title font-display glow-text">
+              Happy Birthday, {recipientName}! 🎂
+            </h1>
+            <p className="reveal-sub">Both players completed all 7 stages! 👯💜</p>
+            <PassAndPlayResults playerResults={playerResults} recipientName={recipientName} />
+          </>
+        ) : (
+          <>
+            <h1 className="reveal-title font-display glow-text">
+              Happy Birthday,<br />{recipientName}! 🎂
+            </h1>
+            <p className="reveal-sub">You cracked all 7 — blue shirt, road kiss and all 👑💜</p>
+          </>
+        )}
       </motion.div>
 
-      <div
-        className="gift-card-scene"
-        style={{ perspective: 1000, width: '100%', height: 340, margin: '30px auto', position: 'relative' }}
-      >
-        <motion.div
-          className="gift-card"
-          initial={{ rotateY: 0 }}
-          animate={{ rotateY: flipped ? 180 : 0 }}
-          transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
-          style={{
-            position: 'relative',
-            width: '100%',
-            height: '100%',
-            transformStyle: 'preserve-3d',
-            cursor: 'pointer',
-          }}
-          onClick={handleCardClick}
+      {mode !== 'passAndPlay' && (
+        <div
+          className="gift-card-scene"
+          style={{ perspective: 1000, width: '100%', height: 340, margin: '30px auto', position: 'relative' }}
         >
-          <div className="gift-card-face gift-card-front">
-            <div style={{ fontSize: '4rem', marginBottom: 12 }}>🎁</div>
-            <div className="card-name">{recipientName}</div>
-            <div className="card-subtitle">A Special Gift Just For You</div>
-          </div>
-          <div className="gift-card-face gift-card-back">
-            <div style={{ fontSize: '3rem', marginBottom: 12 }}>💜</div>
-            <div className="card-name">It Was Always You</div>
-            <div className="card-subtitle">Open to see your surprise</div>
-          </div>
-        </motion.div>
-      </div>
+          <motion.div
+            className="gift-card"
+            initial={{ rotateY: 0 }}
+            animate={{ rotateY: flipped ? 180 : 0 }}
+            transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
+            style={{
+              position: 'relative',
+              width: '100%',
+              height: '100%',
+              transformStyle: 'preserve-3d',
+              cursor: 'pointer',
+            }}
+            onClick={handleCardClick}
+          >
+            <div className="gift-card-face gift-card-front">
+              <div style={{ fontSize: '4rem', marginBottom: 12 }}>🎁</div>
+              <div className="card-name">{recipientName}</div>
+              <div className="card-subtitle">A Special Gift Just For You</div>
+            </div>
+            <div className="gift-card-face gift-card-back">
+              <div style={{ fontSize: '3rem', marginBottom: 12 }}>💜</div>
+              <div className="card-name">It Was Always You</div>
+              <div className="card-subtitle">Open to see your surprise</div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
-      {!flipped && (
+      {!flipped && mode !== 'passAndPlay' && (
         <motion.p
           style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', marginBottom: 20 }}
           animate={{ opacity: [0.4, 1, 0.4] }}
@@ -768,7 +783,7 @@ function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = 
         </motion.p>
       )}
 
-      {showMessage && (
+      {showMessage && mode !== 'passAndPlay' && (
         <motion.div
           className="glass-card"
           style={{ padding: '28px 32px', borderRadius: 24, maxWidth: 480, margin: '0 auto' }}
@@ -882,7 +897,259 @@ function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = 
   )
 }
 
-/* ════════════════════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MODE SELECTION SCREEN (Single Player vs Pass & Play)
+   ════════════════════════════════════════════════════════════════════════════════════════ */
+
+function ModeSelectionScreen({ onModeSelect, recipientName = DEFAULT_RECIPIENT_NAME }) {
+  return (
+    <motion.div
+      className="stage"
+      key="mode-selection"
+      style={{ textAlign: 'center' }}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+    >
+      <motion.div
+        style={{ fontSize: '5rem', marginBottom: 16 }}
+        animate={{ rotate: [0, -10, 10, -10, 10, 0], scale: [1, 1.1, 1] }}
+        transition={{ repeat: Infinity, duration: 3, repeatDelay: 1 }}
+      >
+        🎂
+      </motion.div>
+
+      <h1 className="font-display" style={{ fontSize: 'clamp(2.4rem, 8vw, 4rem)', marginBottom: 8, lineHeight: 1.1 }}>
+        <span className="gradient-text">Choose Your Mode</span>
+      </h1>
+
+      <p style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.7)', marginBottom: 40, lineHeight: 1.7 }}>
+        Hey {recipientName} 👋 How do you want to play?
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 320, margin: '0 auto' }}>
+        <motion.button
+          className="btn-primary"
+          style={{ fontSize: '1.15rem', padding: '20px 32px', textAlign: 'left' }}
+          onClick={() => onModeSelect('single')}
+          whileHover={{ scale: 1.04, x: 8 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <span style={{ fontSize: '1.5rem', marginRight: 12 }}>🎮</span>
+          <div>
+            <div style={{ fontWeight: 700 }}>Single Player</div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: 2 }}>Play solo through all 7 stages</div>
+          </div>
+        </motion.button>
+
+        <motion.button
+          className="btn-secondary"
+          style={{ fontSize: '1.15rem', padding: '20px 32px', textAlign: 'left' }}
+          onClick={() => onModeSelect('passAndPlay')}
+          whileHover={{ scale: 1.04, x: 8 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <span style={{ fontSize: '1.5rem', marginRight: 12 }}>👯</span>
+          <div>
+            <div style={{ fontWeight: 700 }}>Pass & Play (2 Players)</div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: 2 }}>Take turns — perfect for couples!</div>
+          </div>
+        </motion.button>
+      </div>
+
+      <p style={{ marginTop: 28, fontSize: '0.85rem', color: 'rgba(255,255,255,0.35)' }}>
+        7 stages · Memory challenges · Personal surprises 💜
+      </p>
+    </motion.div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PASS & PLAY RESULTS COMPONENT
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+function PassAndPlayResults({ playerResults, recipientName }) {
+  const p1 = playerResults[1] || { completed: false, failedCount: 0 }
+  const p2 = playerResults[2] || { completed: false, failedCount: 0 }
+  const bothCompleted = p1.completed && p2.completed
+
+  return (
+    <motion.div
+      className="glass-card"
+      style={{ padding: '28px 32px', borderRadius: 24, maxWidth: 480, margin: '20px auto', textAlign: 'center' }}
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.6 }}
+    >
+      <div style={{ fontSize: '2.5rem', marginBottom: 16 }}>👯</div>
+      <h2 style={{ fontSize: '1.4rem', marginBottom: 20, fontWeight: 700 }}>
+        {bothCompleted ? 'Perfect Match!' : 'Results'}
+      </h2>
+
+      <div style={{ display: 'flex', gap: 24, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 20 }}>
+        {/* Player 1 Card */}
+        <motion.div
+          className="glass-card"
+          style={{ 
+            padding: '20px 24px', 
+            borderRadius: 16, 
+            minWidth: 160,
+            flex: 1,
+            border: p1.completed ? '2px solid #34d399' : '2px solid rgba(255,255,255,0.1)',
+            background: p1.completed ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255,255,255,0.03)'
+          }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <div style={{ fontSize: '2rem', marginBottom: 8 }}>🎮</div>
+          <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 4 }}>Player 1</div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 800, color: p1.completed ? '#34d399' : '#f43f5e' }}>
+            {p1.completed ? '✅' : '❌'}
+          </div>
+          <div style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: 8 }}>
+            {p1.failedCount > 0 ? `${p1.failedCount} retry${p1.failedCount > 1 ? 's' : ''}` : 'First try!'}
+          </div>
+        </motion.div>
+
+        {/* VS Divider */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          color: 'rgba(255,255,255,0.4)',
+          fontWeight: 700,
+          fontSize: '1.2rem'
+        }}>
+          VS
+        </div>
+
+        {/* Player 2 Card */}
+        <motion.div
+          className="glass-card"
+          style={{ 
+            padding: '20px 24px', 
+            borderRadius: 16, 
+            minWidth: 160,
+            flex: 1,
+            border: p2.completed ? '2px solid #34d399' : '2px solid rgba(255,255,255,0.1)',
+            background: p2.completed ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255,255,255,0.03)'
+          }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div style={{ fontSize: '2rem', marginBottom: 8 }}>🎮</div>
+          <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 4 }}>Player 2</div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 800, color: p2.completed ? '#34d399' : '#f43f5e' }}>
+            {p2.completed ? '✅' : '❌'}
+          </div>
+          <div style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: 8 }}>
+            {p2.failedCount > 0 ? `${p2.failedCount} retry${p2.failedCount > 1 ? 's' : ''}` : 'First try!'}
+          </div>
+        </motion.div>
+      </div>
+
+      {bothCompleted && (
+        <motion.div
+          style={{ 
+            padding: '16px', 
+            borderRadius: 12, 
+            background: 'linear-gradient(135deg, rgba(217, 70, 239, 0.2), rgba(124, 58, 237, 0.2))',
+            border: '1px solid rgba(217, 70, 239, 0.3)'
+          }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <div style={{ fontSize: '1.8rem', marginBottom: 8 }}>💕</div>
+          <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 4 }}>
+            You both cracked it! 💜
+          </div>
+          <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>
+            True love conquers all 7 stages 👑
+          </div>
+        </motion.div>
+      )}
+
+      {!bothCompleted && (
+        <motion.div
+          style={{ 
+            padding: '16px', 
+            borderRadius: 12, 
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+            {p1.completed && !p2.completed && 'Player 2 couldn\'t finish...'}
+            {!p1.completed && p2.completed && 'Player 1 couldn\'t finish...'}
+            {!p1.completed && !p2.completed && 'Neither player completed all stages'}
+          </div>
+          <div style={{ fontSize: '0.9rem', opacity: 0.7 }}>
+            {recipientName}, you can always try again! 💜
+          </div>
+        </motion.div>
+      )}
+    </motion.div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PASS TURN SCREEN (shown between players in Pass & Play mode)
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+function PassTurnScreen({ currentPlayer, nextPlayer, onContinue, recipientName }) {
+  return (
+    <motion.div
+      className="stage"
+      key={`pass-turn-${nextPlayer}`}
+      style={{ textAlign: 'center' }}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+    >
+      <motion.div
+        style={{ fontSize: '6rem', marginBottom: 20 }}
+        animate={{ scale: [1, 1.15, 1], rotate: [0, 5, -5, 0] }}
+        transition={{ duration: 1.2, repeat: Infinity }}
+      >
+        🎁
+      </motion.div>
+
+      <h1 className="font-display" style={{ fontSize: 'clamp(2.2rem, 8vw, 3.5rem)', marginBottom: 8, lineHeight: 1.1 }}>
+        <span className="gradient-text">Pass to Player {nextPlayer}!</span>
+      </h1>
+
+      <p style={{ fontSize: '1.15rem', color: 'rgba(255,255,255,0.7)', marginBottom: 12, lineHeight: 1.7 }}>
+        Player {currentPlayer} completed their turn 🎉
+      </p>
+
+      <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.5)', marginBottom: 40, lineHeight: 1.6 }}>
+        Hand the device to <strong>{recipientName}</strong> for their turn! 💜
+      </p>
+
+      <motion.button
+        className="btn-primary"
+        style={{ fontSize: '1.2rem', padding: '18px 44px' }}
+        onClick={onContinue}
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        👉 Ready for Player {nextPlayer}
+      </motion.button>
+
+      <p style={{ marginTop: 24, fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)' }}>
+        Same 7 stages · Who cracks them all? 💕
+      </p>
+    </motion.div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    WELCOME SCREEN (dynamic name)
    ════════════════════════════════════════════════════════════════════════════════════════ */
 
@@ -1030,16 +1297,19 @@ function ProgressDots({ current, total }) {
   )
 }
 
-/* ════════════════════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════════
    MAIN APP
    ════════════════════════════════════════════════════════════════════════════════════════ */
 
 export default function App() {
-  const [screen, setScreen] = useState('welcome') // welcome | puzzle | reveal
+  const [screen, setScreen] = useState('welcome') // welcome | mode-selection | puzzle | pass-turn | reveal
   const [stage, setStage] = useState(0)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState('')
   const [gameState, setGameState] = useState(null)
+  const [mode, setMode] = useState(null) // 'single' | 'passAndPlay'
+  const [currentPlayer, setCurrentPlayer] = useState(1) // 1 or 2
+  const [playerResults, setPlayerResults] = useState({ 1: null, 2: null }) // { completed: boolean, failedCount: number }
 
   const STAGES = [Stage1, Stage2, Stage3, Stage4, RunawayHeartStage, BlueShirtStage, FirstKissStage]
   const CurrentStage = STAGES[stage]
@@ -1060,16 +1330,123 @@ export default function App() {
     if (stage < STAGES.length - 1) {
       setStage(s => s + 1)
     } else {
+      // Current player completed all stages
+      handlePlayerComplete()
+    }
+  }
+
+  const handlePlayerComplete = () => {
+    setPlayerResults(prev => ({
+      ...prev,
+      [currentPlayer]: { completed: true, failedCount: 0 }
+    }))
+
+    if (mode === 'passAndPlay') {
+      if (currentPlayer === 1) {
+        // Switch to player 2
+        setScreen('pass-turn')
+        setCurrentPlayer(2)
+        setStage(0)
+      } else {
+        // Both players done - go to reveal
+        setScreen('reveal')
+      }
+    } else {
+      // Single player mode
       setScreen('reveal')
     }
+  }
+
+  const handlePlayerFailed = () => {
+    // Track failed attempts (for potential scoring)
+    setPlayerResults(prev => ({
+      ...prev,
+      [currentPlayer]: {
+        ...prev[currentPlayer],
+        failedCount: (prev[currentPlayer]?.failedCount || 0) + 1
+      }
+    }))
+  }
+
+  const handlePassTurnContinue = () => {
+    setScreen('puzzle')
+  }
+
+  const handleModeSelect = (selectedMode) => {
+    setMode(selectedMode)
+    setCurrentPlayer(1)
+    setStage(0)
+    setPlayerResults({ 1: null, 2: null })
+    setScreen('puzzle')
   }
 
   const handleCreate = useCallback((url, state) => {
     setShareUrl(url)
     setGameState(state)
     setCreateModalOpen(false)
-    setScreen('puzzle')
+    setScreen('mode-selection') // Go to mode selection first
   }, [])
+
+  const handlePlayAgain = () => {
+    setScreen('welcome')
+    setStage(0)
+    setMode(null)
+    setCurrentPlayer(1)
+    setPlayerResults({ 1: null, 2: null })
+  }
+
+  // Determine what to render for puzzle screen
+  const renderPuzzleScreen = () => {
+    if (mode === 'passAndPlay') {
+      return (
+        <motion.div
+          key="puzzle-wrapper"
+          style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+        >
+          {/* Pass & Play indicator */}
+          <div style={{ 
+            marginBottom: 16, 
+            padding: '8px 16px', 
+            background: 'rgba(217, 70, 239, 0.2)', 
+            borderRadius: '20px',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            color: '#d946ef'
+          }}>
+            🎮 Pass & Play · Player {currentPlayer}'s Turn
+          </div>
+          
+          <ProgressDots current={stage} total={STAGES.length} />
+          <AnimatePresence mode="wait">
+            <CurrentStage
+              key={`stage-${stage}-p${currentPlayer}`}
+              onComplete={nextStage}
+              onFail={handlePlayerFailed}
+              recipientName={recipientName}
+              customMessage={customMessage}
+            />
+          </AnimatePresence>
+        </motion.div>
+      )
+    }
+
+    return (
+      <motion.div
+        key="puzzle-wrapper"
+        style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+      >
+        <ProgressDots current={stage} total={STAGES.length} />
+        <AnimatePresence mode="wait">
+          <CurrentStage
+            key={`stage-${stage}`}
+            onComplete={nextStage}
+            recipientName={recipientName}
+            customMessage={customMessage}
+          />
+        </AnimatePresence>
+      </motion.div>
+    )
+  }
 
   return (
     <div className="app-container">
@@ -1081,26 +1458,29 @@ export default function App() {
           <WelcomeScreen
             key="welcome"
             recipientName={recipientName}
-            onStart={() => setScreen('puzzle')}
+            onStart={() => setScreen('mode-selection')}
             onCreate={() => setCreateModalOpen(true)}
           />
         )}
 
-        {screen === 'puzzle' && (
-          <motion.div
-            key="puzzle-wrapper"
-            style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-          >
-            <ProgressDots current={stage} total={STAGES.length} />
-            <AnimatePresence mode="wait">
-              <CurrentStage
-                key={`stage-${stage}`}
-                onComplete={nextStage}
-                recipientName={recipientName}
-                customMessage={customMessage}
-              />
-            </AnimatePresence>
-          </motion.div>
+        {screen === 'mode-selection' && (
+          <ModeSelectionScreen
+            key="mode-selection"
+            onModeSelect={handleModeSelect}
+            recipientName={recipientName}
+          />
+        )}
+
+        {screen === 'puzzle' && renderPuzzleScreen()}
+
+        {screen === 'pass-turn' && (
+          <PassTurnScreen
+            key="pass-turn"
+            currentPlayer={currentPlayer === 1 ? 2 : 1}
+            nextPlayer={currentPlayer}
+            onContinue={handlePassTurnContinue}
+            recipientName={recipientName}
+          />
         )}
 
         {screen === 'reveal' && (
@@ -1109,7 +1489,10 @@ export default function App() {
             recipientName={recipientName}
             customMessage={customMessage}
             shareUrl={shareUrl}
-            onPlayAgain={() => setScreen('welcome')}
+            mode={mode}
+            currentPlayer={currentPlayer}
+            playerResults={playerResults}
+            onPlayAgain={handlePlayAgain}
           />
         )}
       </AnimatePresence>
