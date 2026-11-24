@@ -10,9 +10,9 @@ import StoryCardPreview from './StoryCardCanvas.jsx'
    DEFAULT VALUES (fallback when no URL hash state)
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-const DEFAULT_RECIPIENT_NAME = 'Biko'
+const DEFAULT_RECIPIENT_NAME = 'Mali'
 const DEFAULT_CUSTOM_MESSAGE = "You cracked all 7 — blue shirt, road kiss and all 👑💜"
-const DEFAULT_TARGET_WORD = 'BIKO'
+const DEFAULT_TARGET_WORD = 'MALI'
 const DEFAULT_BALLOON_SEQUENCE = ['🩷', '💜', '💛']
 const MEMORIZE_DURATION = 2500
 

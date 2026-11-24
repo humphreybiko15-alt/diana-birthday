@@ -43,7 +43,7 @@ export function decompressState(hash) {
     
     // Ensure defaults for missing fields
     return {
-      recipientName: state.recipientName || 'Biko',
+      recipientName: state.recipientName || 'Mali',
       customMessage: state.customMessage || '',
       stages: state.stages || [],
       createdAt: state.createdAt || Date.now(),
@@ -109,11 +109,11 @@ export function updateUrlState(state) {
  * Default game state for fallback
  */
 export const DEFAULT_STATE = {
-  recipientName: 'Biko',
+  recipientName: 'Mali',
   customMessage: "You cracked all 7 — blue shirt, road kiss and all 👑💜",
   stages: [
-    { id: 1, type: 'scramble', targetWord: 'BIKO', clue: "Who's the Birthday Star?" },
-    { id: 2, type: 'year', clue: "What year was Biko born?", answerRange: [1980, 2010] },
+    { id: 1, type: 'scramble', targetWord: 'MALI', clue: "Who's the Birthday Star?" },
+    { id: 2, type: 'year', clue: "What year was Mali born?", answerRange: [1980, 2010] },
     { id: 3, type: 'emoji', emojis: '🌟 👑 🎉', question: 'What do these emojis represent?', options: ['Party Animal', 'Birthday Queen', 'Music Lover', 'Night Owl'], correctIndex: 1 },
     { id: 4, type: 'memory', sequence: ['🩷', '💜', '💛'] },
     { id: 5, type: 'runaway' },

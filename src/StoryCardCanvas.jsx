@@ -79,7 +79,7 @@ function drawQRCode(ctx, text, x, y, size) {
  */
 export function generateStoryCard(params) {
   const {
-    recipientName = 'Biko',
+    recipientName = 'Mali',
     score = 7,
     maxScore = 7,
     customMessage = '',
