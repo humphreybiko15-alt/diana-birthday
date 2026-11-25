@@ -644,7 +644,7 @@ function Stage4({ onComplete, onFail, sequence = DEFAULT_BALLOON_SEQUENCE }) {
    FINAL REVEAL SCREEN (dynamic name + message + share)
    ════════════════════════════════════════════════════════════════════════════════════════ */
 
-function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = DEFAULT_CUSTOM_MESSAGE, onPlayAgain, mode = 'single', currentPlayer = 1, playerResults = { 1: null, 2: null } }) {
+function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = DEFAULT_CUSTOM_MESSAGE, onPlayAgain, mode = 'single', _currentPlayer = 1, playerResults = { 1: null, 2: null } }) {
   const [flipped, setFlipped] = useState(false)
   const [showMessage, setShowMessage] = useState(false)
   const [blasted, setBlasted] = useState(false)
