@@ -87,11 +87,22 @@ export function generateStoryCard(params = {}) {
     width = 1080,
     height = 1920
   } = params;
-  
+
+  // 2× device-pixel scaling keeps the download crisp on Retina/4K screens.
+  // All canvas coordinates are multiplied by `scale`, so layout stays identical
+  // while text/graphics render at native sharpness.
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const scale = dpr;
+  const sW = width * scale;
+  const sH = height * scale;
+
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = sW;
+  canvas.height = sH;
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
   const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
   
   // ─── Background Gradient ───
   const gradient = ctx.createLinearGradient(0, 0, 0, height);
@@ -344,7 +355,9 @@ export function StoryCardPreview({ params, onClose, onDownload }) {
     if (canvasRef.current) {
       const canvas = generateForPreview(params);
       const ctx = canvasRef.current.getContext('2d');
-      ctx.drawImage(canvas, 0, 0, canvasRef.current.width, canvasRef.current.height);
+      // Draw the full-res canvas into the preview canvas; crisp downscale via
+      // image-rendering keeps it sharp even on small screens.
+      ctx.drawImage(canvas, 0, 0);
     }
   }, [params, generateForPreview]);
   
@@ -354,8 +367,9 @@ export function StoryCardPreview({ params, onClose, onDownload }) {
     });
   };
   
-  // 9:16 aspect ratio preview (smaller for screen)
-  const previewWidth = Math.min(360, window.innerWidth - 40);
+  // Responsive 9:16 preview (never exceeds viewport)
+  const maxPreviewWidth = Math.min(420, window.innerWidth - 40);
+  const previewWidth = maxPreviewWidth;
   const previewHeight = previewWidth * 16 / 9;
   
   return (
@@ -366,12 +380,12 @@ export function StoryCardPreview({ params, onClose, onDownload }) {
           <button className="story-card-close" onClick={onClose} aria-label="Close preview">✕</button>
         </div>
         
-        <div className="story-card-preview" style={{ width: previewWidth, height: previewHeight }}>
+        <div className="story-card-preview-wrapper" style={{ width: previewWidth, height: previewHeight }}>
           <canvas 
             ref={canvasRef} 
             width={previewWidth * 2} 
             height={previewHeight * 2}
-            style={{ width: '100%', height: '100%' }}
+            style={{ width: '100%', height: '100%', imageRendering: 'crisp-edges' }}
           />
         </div>
         
