@@ -355,9 +355,13 @@ export function StoryCardPreview({ params, onClose, onDownload }) {
     if (canvasRef.current) {
       const canvas = generateForPreview(params);
       const ctx = canvasRef.current.getContext('2d');
-      // Draw the full-res canvas into the preview canvas; crisp downscale via
-      // image-rendering keeps it sharp even on small screens.
-      ctx.drawImage(canvas, 0, 0);
+      // Draw the whole card scaled to fit the preview canvas. drawImage(canvas,
+      // 0, 0) renders at natural size, so only the top-left corner of the
+      // 1080x1920 card fit the small preview and everything else was clipped
+      // out (blank screen with just the top accent line). Draw the full source
+      // rect instead so the entire card is visible.
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(canvas, 0, 0, ctx.canvas.width, ctx.canvas.height);
     }
   }, [params, generateForPreview]);
   
