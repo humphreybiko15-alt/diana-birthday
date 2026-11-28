@@ -145,6 +145,31 @@ export class LudoLogic {
     return movable;
   }
 
+  /* ── Possible destinations for a single piece (used by the UI) ── */
+
+  _getPossibleMoves(playerIdx, pathIndex, dice) {
+    const from = pathIndex;
+    if (from >= FINISH_PATH_INDEX) return [];
+    let to;
+    if (from === -1) {
+      // In home: only a 6 brings a piece out to pathIndex 0
+      if (dice !== 6) return [];
+      to = 0;
+    } else {
+      to = from + dice;
+    }
+    // Cannot move past the finish square
+    if (to > FINISH_PATH_INDEX) return [];
+    // Cannot land on one of your own pieces on the main track
+    if (to < FINISH_PATH_INDEX) {
+      const ownBlocked = this.pieces[playerIdx].some(
+        (p) => p !== -1 && p < FINISH_PATH_INDEX && p === to
+      );
+      if (ownBlocked) return [];
+    }
+    return [to];
+  }
+
   /* ── Execute a move ── */
 
   movePiece(pieceIndex) {
