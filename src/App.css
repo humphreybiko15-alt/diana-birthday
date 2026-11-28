@@ -673,9 +673,9 @@
   width: 72px;
   height: 72px;
   border-radius: 16px;
-  background: linear-gradient(145deg, #1a0b33, #2d1b55);
-  border: 3px solid var(--c-fuchsia);
-  box-shadow: var(--shadow-card);
+  background: #ffffff;
+  border: 3px solid #cbbba0;
+  box-shadow: var(--shadow-card), 0 0 12px rgba(203,187,160,0.4);
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -687,7 +687,7 @@
   display: grid;
   place-items: center;
   position: relative;
-  transform: scale(0.85);
+  transform: scale(0.9);
 }
 
 .die-pip {
@@ -695,8 +695,9 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #0a041a;
+  background: #333333;
   transform: translate(-50%, -50%);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
 
 .ludo-extra {
@@ -746,11 +747,11 @@
   max-width: min(92vw, 520px);
   aspect-ratio: 1 / 1;
   margin: 0 auto 18px;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
   background: #0b041a;
-  border: 2px solid rgba(217,70,239,0.25);
-  box-shadow: var(--shadow-card);
+  border: 3px solid #d4af37;
+  box-shadow: var(--shadow-card), 0 0 20px rgba(212,175,55,0.4), 0 0 40px rgba(124,58,237,0.25);
 }
 
 .ludo-board-svg {
