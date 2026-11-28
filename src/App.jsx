@@ -741,7 +741,7 @@ function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = 
   const handleCardClick = () => {
     if (!flipped) {
       setFlipped(true)
-      setTimeout(() => setShowMessage(true), 700)
+      setShowMessage(true)
       if (!blasted) {
         setBlasted(true)
         confetti({
@@ -815,12 +815,12 @@ function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = 
             <div className="gift-card-face gift-card-front">
               <div style={{ fontSize: '4rem', marginBottom: 12 }}>🎁</div>
               <div className="card-name">{recipientName}</div>
-              <div className="card-subtitle">A Special Gift Just For You</div>
+              <div className="card-subtitle">Open to see your surprise</div>
             </div>
             <div className="gift-card-face gift-card-back">
               <div style={{ fontSize: '3rem', marginBottom: 12 }}>💜</div>
               <div className="card-name">It Was Always You</div>
-              <div className="card-subtitle">Open to see your surprise</div>
+              <div className="card-subtitle">Here's your surprise — made just for you 💜</div>
             </div>
           </motion.div>
         </div>
@@ -848,6 +848,22 @@ function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = 
           <p style={{ fontSize: '1.05rem', lineHeight: 1.85, color: 'rgba(255,255,255,0.88)' }}>
             {customMessage}
           </p>
+          <motion.button
+            className="btn-primary"
+            style={{ marginTop: 24, fontSize: '1.1rem', padding: '16px 44px' }}
+            onClick={() => {
+              confetti({
+                particleCount: 250,
+                spread: 200,
+                origin: { y: 0.6 },
+                colors: ['#d946ef', '#7c3aed', '#f43f5e', '#fbbf24', '#34d399'],
+              })
+            }}
+            whileHover={{ scale: 1.06 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            🎊 Reveal Your Gift
+          </motion.button>
           <div style={{ marginTop: 20, fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' }}>
             Made with every bit of 💜 — just for you
           </div>
