@@ -1,27 +1,30 @@
-/* ════════════════════════════════════════════════════════════════════════════════
-   Ludo — real functional multiplayer pass-and-play board game
-   Built on top of pure LudoLogic state machine. Works instantly on the landing page.
+/* ═════════════════════════════════════════════════════════════════════════════════
+   Ludo — polished visual board game
+   Built on top of pure LudoLogic state machine.
+   Features: SVG 15×15 board, glossy 3D tokens, animated dice, HUD,
+   step-by-step movement animation, sound effects, win modal with confetti.
    ════════════════════════════════════════════════════════════════════════════════ */
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import confetti from 'canvas-confetti'
 import { LudoLogic } from './ludoLogic.js'
 
 const NUM_PIECES = 4
 const BOARD_SIZE = 15 // 15x15 grid
 
-// Player start positions on the 15x15 grid (home columns + start squares)
-const HOME_AREAS = {
-  0: { x: 1, y: 1, w: 6, h: 6, start: { x: 6, y: 6 }, color: '#e74c3c' },   // Red   (top-left)
-  1: { x: 8, y: 1, w: 6, h: 6, start: { x: 6, y: 6 }, color: '#f1c40f' },   // Yellow (top-right)
-  2: { x: 1, y: 8, w: 6, h: 6, start: { x: 8, y: 8 }, color: '#2ecc71' },   // Green  (bottom-left)
-  3: { x: 8, y: 8, w: 6, h: 6, start: { x: 8, y: 8 }, color: '#3498db' },   // Blue   (bottom-right)
+/* ── Colors ── */
+const PLAYER_COLORS = ['#e74c3c', '#f1c40f', '#2ecc71', '#3498db']
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `${r}, ${g}, ${b}`
 }
 
-// Main track path around the board (51 positions clockwise from each player's start)
+/* ── Track paths (visual grid coords per player) ── */
 function getTrackPath(playerIdx) {
-  // Each player's track starts at their start square and goes clockwise around
   const paths = []
-  // Red: start at (6,6) → right → down → left → up → center (7,7)
   if (playerIdx === 0) {
     for (let x = 6; x <= 13; x++) paths.push({ x, y: 6 })
     for (let y = 7; y <= 13; y++) paths.push({ x: 13, y })
@@ -30,7 +33,7 @@ function getTrackPath(playerIdx) {
     for (let x = 2; x <= 6; x++) paths.push({ x, y: 1 })
     for (let y = 2; y <= 6; y++) paths.push({ x: 6, y })
     for (let i = 1; i <= 5; i++) paths.push({ x: 7, y: 7 - i })
-    paths.push({ x: 7, y: 7 }) // center finish
+    paths.push({ x: 7, y: 7 })
   } else if (playerIdx === 1) {
     for (let x = 8; x >= 1; x--) paths.push({ x, y: 6 })
     for (let y = 7; y <= 13; y++) paths.push({ x: 1, y })
@@ -64,361 +67,529 @@ function getTrackPath(playerIdx) {
 
 const TRACK_PATHS = [0, 1, 2, 3].map(getTrackPath)
 
-// Map pathIndex → grid coordinate for a player
 function pathToGrid(playerIdx, pathIndex) {
-  if (pathIndex === -1) return null // in home
-  if (pathIndex >= 56) return TRACK_PATHS[playerIdx][55] // center
+  if (pathIndex === -1) return null
+  if (pathIndex >= 56) return TRACK_PATHS[playerIdx][55]
   if (pathIndex >= 51) {
-    // home column (positions 51-55)
     const track = TRACK_PATHS[playerIdx]
-    const base = track.length - 6 // last 6 entries are home column + center
+    const base = track.length - 6
     return track[base + (pathIndex - 51)]
   }
   const track = TRACK_PATHS[playerIdx]
   return track[pathIndex % track.length]
 }
 
-const PLAYER_NAMES = ['Red', 'Yellow', 'Green', 'Blue']
-const PLAYER_COLORS = ['#e74c3c', '#f1c40f', '#2ecc71', '#3498db']
+/* ── Web Audio API sound effects ── */
+const AudioCtx = window.AudioContext || window.webkitAudioContext
+const audioCtx = AudioCtx ? new AudioCtx() : null
+
+const tone = (freq, type = 'square', duration = 0.1, vol = 0.1) => {
+  if (!audioCtx) return
+  const osc = audioCtx.createOscillator()
+  const gain = audioCtx.createGain()
+  osc.type = type
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime)
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration)
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start()
+  osc.stop(audioCtx.currentTime + duration)
+}
+
+const playSound = (kind) => {
+  if (!audioCtx) return
+  switch (kind) {
+    case 'dice':
+      tone(440, 'square', 0.05, 0.1)
+      setTimeout(() => tone(554, 'square', 0.05, 0.1), 60)
+      break
+    case 'hop':
+      tone(880, 'sine', 0.05, 0.08)
+      break
+    case 'capture':
+      tone(220, 'sawtooth', 0.2, 0.12)
+      setTimeout(() => tone(165, 'sawtooth', 0.2, 0.12), 100)
+      break
+    case 'win':
+      [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 'sine', 0.3, 0.15), i * 120))
+      break
+    case 'roll6':
+      [440, 554, 659, 880].forEach((f, i) => setTimeout(() => tone(f, 'square', 0.2, 0.12), i * 80))
+      break
+  }
+}
+
+/* ── Home areas ── */
+const HOME_AREAS = {
+  0: { x: 1, y: 1, w: 6, h: 6, start: { x: 6, y: 6 }, color: '#e74c3c' },
+  1: { x: 8, y: 1, w: 6, h: 6, start: { x: 6, y: 6 }, color: '#f1c40f' },
+  2: { x: 1, y: 8, w: 6, h: 6, start: { x: 8, y: 8 }, color: '#2ecc71' },
+  3: { x: 8, y: 8, w: 6, h: 6, start: { x: 8, y: 8 }, color: '#3498db' },
+}
+
+/* ── Safe squares (star squares) on the 15×15 grid ── */
+const SAFE_SQUARES = [
+  { x: 6, y: 6 }, { x: 8, y: 6 },
+  { x: 6, y: 8 }, { x: 8, y: 8 },
+  { x: 13, y: 6 }, { x: 1, y: 6 }, { x: 13, y: 13 }, { x: 1, y: 13 }
+]
+
+const isSafeSquare = (x, y) => SAFE_SQUARES.some(s => s.x === x && s.y === y)
+const isStartSquare = (x, y) => {
+  for (let p = 0; p < 4; p++) {
+    if (x === HOME_AREAS[p].start.x && y === HOME_AREAS[p].start.y) return p
+  }
+  return -1
+}
+
+/* ── Home slot positions (4 per yard) ── */
+const HOME_SLOTS = {
+  0: [ {x:2,y:2},{x:4,y:2},{x:2,y:4},{x:4,y:4} ],
+  1: [ {x:9,y:2},{x:11,y:2},{x:9,y:4},{x:11,y:4} ],
+  2: [ {x:2,y:9},{x:4,y:9},{x:2,y:11},{x:4,y:11} ],
+  3: [ {x:9,y:9},{x:11,y:9},{x:9,y:11},{x:11,y:11} ],
+}
+
+/* ── Render a 3D-style glossy token ── */
+function renderToken(color, selected) {
+  const innerGlow = selected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)'
+  return (
+    <g>
+      <ellipse cx="0.5" cy="0.58" rx="0.26" ry="0.14" fill="#000" opacity="0.4" />
+      <circle cx="0.5" cy="0.5" r="0.26" fill={color} stroke={innerGlow} strokeWidth="0.07" />
+      <ellipse cx="0.34" cy="0.34" rx="0.11" ry="0.08" fill="#fff" opacity="0.6" />
+      <ellipse cx="0.34" cy="0.34" rx="0.05" ry="0.04" fill="#fff" opacity="0.95" />
+      <circle cx="0.5" cy="0.5" r="0.2" fill="none" stroke="rgba(0,0,0,0.15)" strokeWidth="0.05" />
+      <circle cx="0.5" cy="0.5" r="0.32" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="0.06" />
+    </g>
+  )
+}
+
+/* ── Render pips on a die face ── */
+function renderPips(value) {
+  const positions = {
+    1: [{x:0.5,y:0.5}],
+    2: [{x:0.28,y:0.28},{x:0.72,y:0.72}],
+    3: [{x:0.28,y:0.28},{x:0.5,y:0.5},{x:0.72,y:0.72}],
+    4: [{x:0.28,y:0.28},{x:0.72,y:0.28},{x:0.28,y:0.72},{x:0.72,y:0.72}],
+    5: [{x:0.28,y:0.28},{x:0.72,y:0.28},{x:0.5,y:0.5},{x:0.28,y:0.72},{x:0.72,y:0.72}],
+    6: [{x:0.28,y:0.2},{x:0.72,y:0.2},{x:0.28,y:0.5},{x:0.72,y:0.5},{x:0.28,y:0.8},{x:0.72,y:0.8}],
+  }
+  return positions[value].map((p, i) => (
+    <circle key={i} cx={p.x} cy={p.y} r="0.1" fill="#0a041a" />
+  ))
+}
 
 export default function Ludo({ onClose }) {
   const [numPlayers, setNumPlayers] = useState(2)
-  const [game] = useState(() => new LudoLogic(numPlayers, PLAYER_NAMES.slice(0, numPlayers)))
-  const [playerNames, setPlayerNames] = useState(PLAYER_NAMES.slice(0, numPlayers))
-  const [selectedPiece, setSelectedPiece] = useState(null) // { playerIdx, pieceIdx } or null
+  const [playerNames, setPlayerNames] = useState(['Red', 'Yellow'])
   const [showSetup, setShowSetup] = useState(true)
   const [diceRolled, setDiceRolled] = useState(false)
-  const [rollAnimation, setRollAnimation] = useState(false)
-  const diceRef = useRef(null)
+  const [mute, setMute] = useState(false)
+  const [confettiTrigger, setConfettiTrigger] = useState(0)
 
-  // Recreate game when player count or names change
+  const game = useMemo(() => new LudoLogic(numPlayers, playerNames), [numPlayers, playerNames])
+
+  const state = game.getState()
+  const currentColor = PLAYER_COLORS[state.currentPlayer]
+  const currentName = state.playerNames[state.currentPlayer]
+
+  const [selectedPiece, setSelectedPiece] = useState(null)
+  const [animating, setAnimating] = useState(false)
+  const [diceFace, setDiceFace] = useState(1)
+  const rollTimerRef = useRef(null)
+
+  const movable = useMemo(() => {
+    const result = []
+    for (let p = 0; p < state.numPlayers; p++) {
+      if (p !== state.currentPlayer) continue
+      for (let i = 0; i < NUM_PIECES; i++) {
+        const pos = state.pieces[p][i]
+        if (pos === -1) continue
+        const grid = pathToGrid(p, pos)
+        if (!grid) continue
+        const possible = game._getPossibleMoves(p, pos, state.diceValue)
+        if (possible.length > 0) {
+          result.push({ playerIdx: p, pieceIdx: i, grid, to: possible })
+        }
+      }
+    }
+    return result
+  }, [state, game])
+
   useEffect(() => {
     if (!showSetup) return
     game.reset()
-    game.numPlayers = Math.min(Math.max(numPlayers, 2), 4)
-    game.playerNames = playerNames.slice(0, game.numPlayers)
-    game.colors = PLAYER_COLORS.slice(0, game.numPlayers)
     setSelectedPiece(null)
     setDiceRolled(false)
-  }, [numPlayers, playerNames, showSetup])
+  }, [numPlayers, playerNames, showSetup, game])
 
-  const state = game.getState()
+  /* ── Confetti on win ── */
+  useEffect(() => {
+    if (confettiTrigger <= 0) return
+    confetti({
+      particleCount: 120,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#e74c3c', '#f1c40f', '#2ecc71', '#3498db', '#fbbf24', '#7c3aed'],
+    })
+    // Auto-dismiss confetti after animation completes
+    const t = setTimeout(() => setConfettiTrigger(0), 3000)
+    return () => clearTimeout(t)
+  }, [confettiTrigger])
+
+  useEffect(() => {
+    return () => {
+      if (rollTimerRef.current) clearInterval(rollTimerRef.current)
+    }
+  }, [])
 
   const startGame = useCallback(() => {
     game.reset()
     setSelectedPiece(null)
     setDiceRolled(false)
     setShowSetup(false)
-  }, [])
+  }, [game])
 
   const rollDice = useCallback(() => {
-    if (state.gameOver || state.isRolling) return
-    const roll = game.rollDice()
-    setRollAnimation(true)
+    if (state.gameOver || state.isRolling || diceRolled) return
     setDiceRolled(true)
-    diceRef.current = roll
     setSelectedPiece(null)
+    setAnimating(false)
 
-    // After animation, finalize the roll
-    setTimeout(() => {
-      setRollAnimation(false)
-      const result = game.finishRoll()
-      if (result.skipped) {
-        setSelectedPiece(null)
-      } else if (result.movable && result.movable.length > 0) {
-        // auto-select first movable piece if only one option
-        if (result.movable.length === 1) {
-          setSelectedPiece({ playerIdx: state.currentPlayer, pieceIdx: result.movable[0] })
-        }
+    let frames = 0
+    const interval = setInterval(() => {
+      setDiceFace(Math.floor(Math.random() * 6) + 1)
+      frames++
+      if (frames >= 10) {
+        clearInterval(interval)
+        const roll = game.rollDice()
+        setDiceFace(roll)
+        if (!mute) playSound('dice')
+        setTimeout(() => {
+          setDiceRolled(false)
+          const result = game.finishRoll()
+          if (result.skipped) {
+            setSelectedPiece(null)
+          } else if (result.extraTurn && roll === 6) {
+            if (!mute) playSound('roll6')
+          }
+        }, 400)
       }
-    }, 600)
-  }, [state.gameOver, state.isRolling, state.currentPlayer])
+    }, 60)
+    rollTimerRef.current = interval
+  }, [state.gameOver, state.isRolling, diceRolled, mute, game])
 
   const handlePieceClick = useCallback((playerIdx, pieceIdx) => {
-    if (state.gameOver || state.isRolling || !diceRolled) return
+    if (state.gameOver || state.isRolling || !diceRolled || animating) return
     if (playerIdx !== state.currentPlayer) return
+    const canMove = movable.some(m => m.playerIdx === playerIdx && m.pieceIdx === pieceIdx)
+    if (!canMove) return
 
-    const movable = game.getMovablePieces()
-    if (!movable.includes(pieceIdx)) return
+    const { playerIdx: p, pieceIdx: i } = { playerIdx, pieceIdx }
 
-    setSelectedPiece({ playerIdx, pieceIdx })
-  }, [state.gameOver, state.isRolling, diceRolled, state.currentPlayer])
+    const fromPos = state.pieces[p][i]
+    const possible = game._getPossibleMoves(p, fromPos, state.diceValue)
+    if (possible.length === 0) return
 
-  const moveSelected = useCallback(() => {
-    if (!selectedPiece || state.gameOver || !diceRolled) return
-    const { _playerIdx, pieceIdx } = selectedPiece
+    const toGrid = possible[0].to
 
-    const result = game.movePiece(pieceIdx)
-    if (!result.valid) return
+    // Detect capture: any opponent piece on target tile
+    let captured = false
+    for (let pp = 0; pp < state.numPlayers; pp++) {
+      if (pp === p) continue
+      for (let ii = 0; ii < NUM_PIECES; ii++) {
+        const pos = state.pieces[pp][ii]
+        if (pos === -1 || pos >= 56) continue
+        const g = pathToGrid(pp, pos)
+        if (g && g.x === toGrid.x && g.y === toGrid.y) {
+          captured = true
+          break
+        }
+      }
+      if (captured) break
+    }
 
-    setDiceRolled(false)
+    let step = 0
+    const totalSteps = state.diceValue
+    setAnimating(true)
     setSelectedPiece(null)
+    if (!mute) playSound('hop')
 
-    if (result.won) {
-      // game over handled by state
-      return
+    const hopInterval = setInterval(() => {
+      step++
+      if (step < totalSteps && !mute) playSound('hop')
+      if (step >= totalSteps) {
+        clearInterval(hopInterval)
+        const result = game.movePiece(i)
+        setAnimating(false)
+        setDiceRolled(false)
+        if (result.captured && !mute) playSound('capture')
+        if (result.extraTurn && state.diceValue === 6 && !mute) playSound('roll6')
+        if (state.gameOver && state.winner !== null && !mute) {
+          playSound('win')
+          setConfettiTrigger(c => c + 1)
+        }
+      }
+    }, 220)
+  }, [state.gameOver, state.isRolling, diceRolled, animating, movable, state.currentPlayer, state.diceValue, state.pieces, state.numPlayers, state.winner, mute, game])
+
+  /* ── Pieces at a grid cell ── */
+  const piecesAt = useCallback((x, y) => {
+    const result = []
+    for (let p = 0; p < state.numPlayers; p++) {
+      for (let i = 0; i < NUM_PIECES; i++) {
+        const pos = state.pieces[p][i]
+        if (pos === -1 || pos >= 56) continue
+        const g = pathToGrid(p, pos)
+        if (g && g.x === x && g.y === y) result.push({ playerIdx: p, pieceIdx: i })
+      }
     }
-
-    if (result.extraTurn) {
-      // same player rolls again
-      return
+    if (x === 7 && y === 7) {
+      for (let p = 0; p < state.numPlayers; p++) {
+        for (let i = 0; i < NUM_PIECES; i++) {
+          if (state.pieces[p][i] >= 56) result.push({ playerIdx: p, pieceIdx: i })
+        }
+      }
     }
-    // turn already switched inside movePiece
-  }, [selectedPiece, state.gameOver, diceRolled])
+    return result
+  }, [state])
 
-  if (showSetup) {
-    return (
-      <div className="ludo-setup glass-card no-select" role="dialog" aria-modal="true">
-        <button
-          className="ludo-close"
-          onClick={() => onClose && onClose()}
-          aria-label="Close Ludo"
-        >
-          ✕
-        </button>
-        <div className="ludo-title">
-          <span className="ludo-emoji">🎲</span>
-          <h2>Ludo — Play Instantly</h2>
-          <p>Entertain yourself while your friend takes their turn.</p>
-        </div>
-
-        <div className="ludo-setup-row">
-          <label>Players</label>
-          <select
-            className="ludo-select"
-            value={numPlayers}
-            onChange={(e) => setNumPlayers(parseInt(e.target.value, 10))}
-          >
-            {[2, 3, 4].map((n) => (
-              <option key={n} value={n}>{n} Player{n > 1 ? 's' : ''}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="ludo-names">
-          {playerNames.map((name, i) => (
-            <div key={i} className="ludo-name-row">
-              <span className="ludo-name-dot" style={{ background: PLAYER_COLORS[i] }}></span>
-              <input
-                className="ludo-name-input"
-                type="text"
-                value={name}
-                placeholder={`Player ${i + 1}`}
-                maxLength={12}
-                onChange={(e) => {
-                  const next = [...playerNames]
-                  next[i] = e.target.value || PLAYER_NAMES[i]
-                  setPlayerNames(next)
-                }}
-              />
-            </div>
-          ))}
-        </div>
-
-        <button className="btn-primary ludo-start" onClick={startGame}>
-          Start Game
-        </button>
-        <p className="ludo-hint">Tap a piece to move after rolling. Rolling a 6 grants an extra turn!</p>
-      </div>
-    )
+  /* ── Token stacking offsets ── */
+  const stackOffset = (piecesAtCell, idx) => {
+    const n = piecesAtCell.length
+    if (n === 1) return { x: 0, y: 0 }
+    if (n === 2) return idx === 0 ? { x: -0.08, y: -0.08 } : { x: 0.08, y: 0.08 }
+    if (n === 3) return [{ x: -0.1, y: 0 }, { x: 0.1, y: 0 }, { x: 0, y: -0.1 }][idx]
+    return { x: (idx % 2 === 0 ? -0.1 : 0.1), y: (idx < 2 ? -0.1 : 0.1) }
   }
-
-  const currentColor = PLAYER_COLORS[state.currentPlayer]
-  const currentName = state.playerNames[state.currentPlayer]
-  const movable = game.getMovablePieces()
 
   return (
     <div className="ludo-game no-select">
-      <button
-        className="ludo-close"
-        onClick={() => {
-          setShowSetup(true)
-          game.reset()
-        }}
-        aria-label="Back to game setup"
-      >
-        ↶
-      </button>
-
-      {/* Top bar */}
-      <div className="ludo-header">
-        <div className="ludo-turn">
-          <span className="ludo-turn-indicator" style={{ background: currentColor }}></span>
-          <span className="ludo-turn-text">{currentName}'s turn</span>
-        </div>
-        <div className="ludo-dice">
-          <button className="btn-primary ludo-roll-btn" onClick={rollDice} disabled={state.gameOver || state.isRolling || diceRolled && !movable.length === 0 && !state.gameOver}>
-            {state.isRolling ? 'Rolling...' : 'Roll Dice'}
-          </button>
-          <div className={`ludo-dice-face ${rollAnimation ? 'rolling' : ''}`}>
-            {state.diceValue}
+      {/* ── Game Setup ── */}
+      {showSetup && (
+        <div className="ludo-setup glass-card" role="dialog" aria-modal="true">
+          <button className="ludo-close" onClick={() => onClose && onClose()} aria-label="Close Ludo">✕</button>
+          <div className="ludo-title">
+            <span className="ludo-emoji">🎲</span>
+            <h2>Ludo — Play Instantly</h2>
+            <p>Entertain yourself while your friend takes their turn.</p>
           </div>
+          <div className="ludo-setup-row">
+            <label>Players</label>
+            <select className="ludo-select" value={numPlayers} onChange={(e) => setNumPlayers(parseInt(e.target.value, 10))}>
+              {[2, 3, 4].map(n => <option key={n} value={n}>{n} Player{n > 1 ? 's' : ''}</option>)}
+            </select>
+          </div>
+          <div className="ludo-names">
+            {playerNames.map((name, i) => (
+              <div key={i} className="ludo-name-row">
+                <span className="ludo-name-dot" style={{ background: PLAYER_COLORS[i] }}></span>
+                <input
+                  className="ludo-name-input"
+                  type="text"
+                  value={name}
+                  placeholder={`Player ${i + 1}`}
+                  maxLength={12}
+                  onChange={(e) => {
+                    const next = [...playerNames]
+                    next[i] = e.target.value || `Player ${i + 1}`
+                    setPlayerNames(next)
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <button className="btn-primary ludo-start" onClick={startGame}>Start Game</button>
+          <p className="ludo-hint">Roll a 6 to leave home. Rolling a 6 grants an extra turn!</p>
         </div>
-      </div>
-
-      {state.message && (
-        <div className="ludo-message">{state.message}</div>
       )}
 
-      {/* Board */}
-      <div className="ludo-board">
-        {/* Home areas (player yards) */}
-        {[0, 1, 2, 3].map((p) => {
-          if (p >= state.numPlayers) return null
-          const ha = HOME_AREAS[p]
-          return (
-            <div key={p} className="ludo-home" style={{ ...ha, background: `rgba(${hexToRgb(PLAYER_COLORS[p])},0.15)`, border: `2px solid ${PLAYER_COLORS[p]}` }}>
-              <div className="ludo-home-label">{state.playerNames[p]}</div>
-              {[0, 1, 2, 3].map((i) => {
-                const pi = state.pieces[p][i]
-                if (pi === -1) {
-                  return (
-                    <div
-                      key={i}
-                      className="ludo-piece ludo-piece-home"
-                      style={{ background: PLAYER_COLORS[p] }}
-                      onClick={() => handlePieceClick(p, i)}
-                    />
-                  )
-                }
-                return null
-              })}
+      {!showSetup && (
+        <div className="ludo-game-wrap">
+          <button className="ludo-close" onClick={() => { setShowSetup(true); game.reset(); setSelectedPiece(null); setDiceRolled(false); setAnimating(false); }} aria-label="Back to setup">↶</button>
+
+          {/* ── HUD ── */}
+          <div className="ludo-hud">
+            <div className="ludo-turn">
+              <span className="ludo-turn-indicator" style={{ background: currentColor, boxShadow: `0 0 12px ${currentColor}` }}></span>
+              <span className="ludo-turn-text">{currentName}'s turn</span>
             </div>
-          )
-        })}
 
-        {/* Main board grid */}
-        <div className="ludo-grid">
-          {/* Draw center and track cells */}
-          {Array.from({ length: BOARD_SIZE }, (_, y) =>
-            Array.from({ length: BOARD_SIZE }).map((_, x) => {
-              // Center 6x6 is the finishing area
-              const isCenter = x >= 6 && x <= 8 && y >= 6 && y <= 8
-              const isCenterCell = x === 7 && y === 7
-              const isHomeArea =
-                (x < 6 && y < 6) ||
-                (x > 8 && y < 6) ||
-                (x < 6 && y > 8) ||
-                (x > 8 && y > 8)
+            <div className="ludo-dice-tray">
+              <button
+                className={`btn-primary ludo-roll-btn ${rollTimerRef.current ? 'rolling' : ''}`}
+                onClick={rollDice}
+                disabled={state.gameOver || state.isRolling || diceRolled || animating || movable.length === 0}
+                aria-label="Roll dice"
+              >
+                {state.isRolling ? 'Rolling...' : 'Roll Dice'}
+              </button>
+              <div className="ludo-die">
+                <div className="die-face">{renderPips(diceFace)}</div>
+              </div>
+              {diceRolled && state.diceValue === 6 && !state.gameOver && !animating && (
+                <span className="ludo-extra">Extra turn!</span>
+              )}
+            </div>
 
-              if (isHomeArea) return null // home areas drawn separately
+            <button
+              className={`ludo-mute ${mute ? 'muted' : ''}`}
+              onClick={() => setMute(!mute)}
+              aria-label={mute ? 'Unmute' : 'Mute'}
+              title={mute ? 'Sound on' : 'Sound off'}
+            >
+              {mute ? '🔇' : '🔊'}
+            </button>
+          </div>
 
-              // Determine cell type
-              let cellClass = 'ludo-cell'
-              let cellStyle = {}
+          <div className="ludo-status-banner">{state.message}</div>
 
-              if (isCenterCell) {
-                cellClass += ' ludo-center'
-              } else if (isCenter) {
-                cellClass += ' ludo-home-column'
-              } else {
-                // Check if this cell is a player's start square
-                const startPlayer = [0, 1, 2, 3].find((p) => {
-                  const ha = HOME_AREAS[p]
-                  return x === ha.start.x && y === ha.start.y
-                })
-                if (startPlayer !== undefined) {
-                  cellClass += ` ludo-start ludo-start-${startPlayer}`
-                  cellStyle.borderColor = PLAYER_COLORS[startPlayer]
-                }
-              }
+          {/* ── Board SVG ── */}
+          <div className="ludo-board-wrap">
+            <svg
+              className="ludo-board-svg"
+              viewBox="0 0 15 15"
+              preserveAspectRatio="xMidYMid meet"
+              role="img"
+              aria-label="Ludo board"
+            >
+              {/* Background grid cells */}
+              {Array.from({ length: BOARD_SIZE }).map((_, y) =>
+                Array.from({ length: BOARD_SIZE }).map((_, x) => {
+                  const isHomeArea =
+                    (x < 6 && y < 6) || (x > 8 && y < 6) || (x < 6 && y > 8) || (x > 8 && y > 8)
+                  const isCenterCell = x === 7 && y === 7
+                  const isCenterCol = (x >= 6 && x <= 8 && y >= 6 && y <= 8) && !isCenterCell
+                  const startP = isStartSquare(x, y)
+                  const safe = isSafeSquare(x, y)
 
-              // Find pieces at this cell
-              const piecesHere = []
-              for (let p = 0; p < state.numPlayers; p++) {
-                for (let i = 0; i < NUM_PIECES; i++) {
-                  const pi = state.pieces[p][i]
-                  if (pi === -1 || pi >= 56) continue
-                  const grid = pathToGrid(p, pi)
-                  if (grid && grid.x === x && grid.y === y) {
-                    piecesHere.push({ playerIdx: p, pieceIdx: i })
-                  }
-                }
-              }
-              // Also check finished pieces at center
-              if (isCenterCell) {
-                for (let p = 0; p < state.numPlayers; p++) {
-                  for (let i = 0; i < NUM_PIECES; i++) {
-                    if (state.pieces[p][i] >= 56) {
-                      piecesHere.push({ playerIdx: p, pieceIdx: i })
-                    }
-                  }
-                }
-              }
-
-              return (
-                <div
-                  key={`cell-${x}-${y}`}
-                  className={cellClass}
-                  style={cellStyle}
-                  onClick={() => {
-                    // If clicking a cell with current player's movable piece, select it
-                    const myPiece = piecesHere.find(
-                      (pc) => pc.playerIdx === state.currentPlayer && movable.includes(pc.pieceIdx)
+                  if (isHomeArea) {
+                    const yard = [0,1,2,3].find(p => {
+                      const ha = HOME_AREAS[p]
+                      return x >= ha.x && x < ha.x + ha.w && y >= ha.y && y < ha.y + ha.h
+                    })
+                    const active = yard !== undefined && yard === state.currentPlayer && yard < state.numPlayers
+                    return (
+                      <rect key={`bg-${x}-${y}`} x={x} y={y} width={1} height={1}
+                        fill={yard !== undefined && active ? `rgba(${hexToRgb(PLAYER_COLORS[yard])},0.25)` : '#1a0f2e'}
+                        stroke="#2a1a4a" strokeWidth="0.08" />
                     )
-                    if (myPiece) {
-                      handlePieceClick(myPiece.playerIdx, myPiece.pieceIdx)
-                    }
-                  }}
-                >
-                  {piecesHere.map((pc) => (
-                    <div
-                      key={`p-${pc.playerIdx}-i-${pc.pieceIdx}`}
-                      className="ludo-piece"
-                      style={{
-                        background: PLAYER_COLORS[pc.playerIdx],
-                        boxShadow: selectedPiece?.playerIdx === pc.playerIdx && selectedPiece?.pieceIdx === pc.pieceIdx
-                          ? `0 0 10px rgba(255,255,255,0.9), 0 0 20px ${PLAYER_COLORS[pc.playerIdx]}`
-                          : '',
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handlePieceClick(pc.playerIdx, pc.pieceIdx)
-                      }}
-                    />
-                  ))}
-                </div>
-              )
-            })
+                  }
+
+                  if (isCenterCell) {
+                    return (
+                      <rect key={`bg-${x}-${y}`} x={x} y={y} width={1} height={1}
+                        fill="#0d0516" stroke="#7c3aed" strokeWidth="0.12" />
+                    )
+                  }
+
+                  if (isCenterCol) {
+                    return (
+                      <rect key={`bg-${x}-${y}`} x={x} y={y} width={1} height={1}
+                        fill="#160a26" stroke="#2a1a4a" strokeWidth="0.08" />
+                    )
+                  }
+
+                  let fill = '#120820'
+                  if (startP !== undefined) fill = `rgba(${hexToRgb(PLAYER_COLORS[startP])},0.35)`
+                  else if (safe) fill = 'rgba(255,255,255,0.06)'
+
+                  return (
+                    <rect key={`bg-${x}-${y}`} x={x} y={y} width={1} height={1}
+                      fill={fill} stroke="#2a1a4a" strokeWidth="0.1" />
+                  )
+                })
+              )}
+
+              {/* Safe square stars */}
+              {SAFE_SQUARES.filter(s => isStartSquare(s.x, s.y) === -1).map((s, i) => (
+                <text key={`star-${i}`} x={s.x + 0.5} y={s.y + 0.65} textAnchor="middle" fontSize="0.75" fill="#fbbf24" filter="drop-shadow(0 0 2px rgba(0,0,0,0.8))">★</text>
+              ))}
+
+              {/* Center home quadrant decoration */}
+              <path d="M 7 7 L 8 7 L 7.5 7.5 Z" fill="#e74c3c" />
+              <path d="M 8 7 L 8 8 L 7.5 7.5 Z" fill="#f1c40f" />
+              <path d="M 7 8 L 8 8 L 7.5 7.5 Z" fill="#2ecc71" />
+              <path d="M 7 7 L 7 8 L 7.5 7.5 Z" fill="#3498db" />
+
+              {/* ── Home yard tokens ── */}
+              {[0,1,2,3].map(p => {
+                if (p >= state.numPlayers) return null
+                return HOME_SLOTS[p].map((slot, i) => {
+                  const pos = state.pieces[p][i]
+                  if (pos !== -1) return null
+                  return (
+                    <g key={`home-${p}-${i}`} transform={`translate(${slot.x + 0.5},${slot.y + 0.5})`} className="token-group" style={{ cursor: 'pointer' }}
+                      onClick={(e) => { e.stopPropagation(); handlePieceClick(p, i) }}
+                    >
+                      {renderToken(PLAYER_COLORS[p], selectedPiece?.playerIdx === p && selectedPiece?.pieceIdx === i)}
+                    </g>
+                  )
+                })
+              })}
+              {/* ── Board track tokens ── */}
+              {[0,1,2,3].map(p => {
+                if (p >= state.numPlayers) return null
+                return [0,1,2,3].map(i => {
+                  const pos = state.pieces[p][i]
+                  if (pos === -1 || pos >= 56) return null
+                  const g = pathToGrid(p, pos)
+                  if (!g) return null
+                  const cellPieces = piecesAt(g.x, g.y)
+                  const idx = cellPieces.findIndex(pc => pc.playerIdx === p && pc.pieceIdx === i)
+                  const off = stackOffset(cellPieces, idx)
+                  const isSelected = selectedPiece?.playerIdx === p && selectedPiece?.pieceIdx === i
+                  return (
+                    <g key={`track-${p}-${i}`} transform={`translate(${g.x + 0.5 + off.x},${g.y + 0.5 + off.y})`} className="token-group" style={{ cursor: 'pointer' }}
+                      onClick={(e) => { e.stopPropagation(); handlePieceClick(p, i) }}
+                    >
+                      {renderToken(PLAYER_COLORS[p], isSelected)}
+                    </g>
+                  )
+                })
+              })}
+              {/* ── Finished tokens at center ── */}
+              {[0,1,2,3].map(p => {
+                if (p >= state.numPlayers) return null
+                return [0,1,2,3].map(i => {
+                  if (state.pieces[p][i] < 56) return null
+                  return (
+                    <g key={`finish-${p}-${i}`} transform="translate(7.5,7.5)" className="token-group">
+                      {renderToken(PLAYER_COLORS[p], false)}
+                    </g>
+                  )
+                })
+              })}
+            </svg>
+          </div>
+
+          {/* ── Win modal ── */}
+          {state.gameOver && state.winner !== null && (
+            <div className="ludo-win-modal">
+              <div className="ludo-win-content">
+                <div className="ludo-win-crown">👑</div>
+                <h2 className="ludo-win-text">{state.playerNames[state.winner]} Wins!</h2>
+                <p className="ludo-win-sub">Congratulations, {state.playerNames[state.winner]}!</p>
+                <button className="btn-primary ludo-win-btn" onClick={() => { game.reset(); setSelectedPiece(null); setDiceRolled(false); setConfettiTrigger(c => c + 1); }}>
+                  Play Again
+                </button>
+                <button className="btn-secondary ludo-win-btn" onClick={() => { setShowSetup(true); game.reset(); setSelectedPiece(null); setDiceRolled(false); }}>
+                  Change Setup
+                </button>
+              </div>
+            </div>
           )}
         </div>
+      )}
 
-        {/* Home columns (vertical/horizontal paths to center) */}
-        {/* Already integrated into grid via center cells; pieces show there */}
-      </div>
-
-      {/* Action bar */}
-      <div className="ludo-actions">
-        <button className="btn-secondary ludo-move-btn" onClick={moveSelected} disabled={!selectedPiece || state.gameOver || !diceRolled}>
-          Move Piece
-        </button>
-        {diceRolled && state.diceValue === 6 && !state.gameOver && (
-          <span className="ludo-extra">Extra turn — roll again!</span>
-        )}
-      </div>
-
-      {/* Winner */}
-      {state.gameOver && state.winner !== null && (
-        <div className="ludo-winner">
-          <div className="ludo-winner-crown">👑</div>
-          <h2 className="ludo-winner-text">{state.playerNames[state.winner]} Wins!</h2>
-          <button className="btn-primary" onClick={() => {
-            game.reset()
-            setSelectedPiece(null)
-            setDiceRolled(false)
-          }}>
-            Play Again
-          </button>
+      {/* ── Confetti overlay ── */}
+      {confettiTrigger > 0 && (
+        <div className="ludo-confetti">
+          <canvas className="ludo-confetti-canvas" />
         </div>
       )}
     </div>
   )
-}
-
-// Convert hex to rgb for rgba backgrounds
-function hexToRgb(hex) {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return `${r}, ${g}, ${b}`
 }
