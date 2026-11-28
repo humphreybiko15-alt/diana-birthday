@@ -77,7 +77,7 @@ function drawQRCode(ctx, text, x, y, size) {
  * @param {Object} params - Card parameters
  * @returns {HTMLCanvasElement} The canvas element
  */
-export function generateStoryCard(params) {
+export function generateStoryCard(params = {}) {
   const {
     recipientName = 'Humph',
     score = 7,
