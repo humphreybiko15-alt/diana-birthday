@@ -15,9 +15,15 @@ const MAX_HASH_LENGTH = 1800;
 export function compressState(state) {
   try {
     const json = JSON.stringify(state);
-    // Use built-in btoa for base64 encoding
-    const compressed = btoa(json);
-    return compressed;
+    // UTF-8-safe base64: TextEncoder → Latin1 binary string → btoa.
+    // btoa alone throws on characters outside the Latin1 range (e.g. emoji),
+    // so we round-trip through UTF-8 bytes first. Works in Node and browsers.
+    const bytes = new TextEncoder().encode(json);
+    let binary = '';
+    for (const byte of bytes) {
+      binary += String.fromCharCode(byte);
+    }
+    return btoa(binary);
   } catch (e) {
     console.error('Failed to compress state:', e);
     return '';
@@ -35,7 +41,13 @@ export function decompressState(hash) {
   try {
     // Remove any leading # if present
     const cleanHash = hash.startsWith('#') ? hash.slice(1) : hash;
-    const json = atob(cleanHash);
+    // Inverse of compressState: atob → Latin1 binary string → UTF-8 bytes → JSON
+    const binary = atob(cleanHash);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const json = new TextDecoder().decode(bytes);
     const state = JSON.parse(json);
     
     // Validate required fields
