@@ -291,7 +291,7 @@ export default function Ludo({ onClose }) {
         <div className="ludo-grid">
           {/* Draw center and track cells */}
           {Array.from({ length: BOARD_SIZE }, (_, y) =>
-            Array.from({ length: BOARD_SIZE }, (_, x)).map(() => {
+            Array.from({ length: BOARD_SIZE }).map((_, x) => {
               // Center 6x6 is the finishing area
               const isCenter = x >= 6 && x <= 8 && y >= 6 && y <= 8
               const isCenterCell = x === 7 && y === 7
