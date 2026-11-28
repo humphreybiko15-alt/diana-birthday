@@ -804,6 +804,7 @@ function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = 
   const [shareUrl, setShareUrl] = useState('')
   const [showShareModal, setShowShareModal] = useState(false)
   const [showStoryCard, setShowStoryCard] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     const blast = () => {
@@ -858,7 +859,8 @@ function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = 
 
   const copyShareLink = () => {
     navigator.clipboard.writeText(shareUrl).then(() => {
-      // Could add toast notification
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     })
   }
 
@@ -1024,9 +1026,9 @@ function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = 
                 value={shareUrl}
                 readOnly
               />
-              <button className="btn-primary" onClick={copyShareLink}>
-                📋 Copy Link
-              </button>
+          <button className="btn-primary" onClick={copyShareLink}>
+            📋 Copy Link {copied && <span style={{ marginLeft: 6, fontSize: '0.85rem', color: '#34d399' }}>✓ Copied!</span>}
+          </button>
             </div>
             <p className="create-hint">
               Paste this link anywhere — it opens the same game with your custom settings!
