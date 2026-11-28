@@ -694,8 +694,108 @@ function Stage4({ onComplete, onFail, sequence = DEFAULT_BALLOON_SEQUENCE }) {
 }
 
 /* ════════════════════════════════════════════════════════════════════════════════════════
+   MPESA GIFT COMPONENT
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+function MpesaGift({ recipientName = 'Humph' }) {
+  const [status, setStatus] = useState('idle') // 'idle' | 'sending' | 'sent' | 'error'
+  const [phone, setPhone] = useState('')
+
+  const handleSend = () => {
+    if (!phone.trim()) return
+    setStatus('sending')
+    // Simulate STK push delay
+    setTimeout(() => {
+      setStatus('sent')
+      confetti({
+        particleCount: 200,
+        spread: 180,
+        origin: { y: 0.6 },
+        colors: ['#d946ef', '#7c3aed', '#fbbf24', '#34d399'],
+        scalar: 1.4,
+      })
+    }, 2000)
+  }
+
+  if (status === 'idle') {
+    return (
+      <div className="mpesa-gift">
+        <div className="mpesa-icon">📱</div>
+        <p className="mpesa-cta">Your gift is ready to be sent via M-Pesa</p>
+        <div className="mpesa-amount">KES 5,000</div>
+        <p className="mpesa-note">Enter your M-Pesa number to receive the STK push</p>
+        <input
+          type="tel"
+          className="form-input"
+          placeholder="2547XXXXXXXX"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          maxLength={12}
+          style={{ marginTop: 16, maxWidth: 280, margin: '16px auto 0', display: 'block', textAlign: 'center' }}
+        />
+        <motion.button
+          className="btn-primary"
+          style={{ marginTop: 16, fontSize: '1.05rem', padding: '14px 32px' }}
+          onClick={handleSend}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.98 }}
+          disabled={!phone.trim()}
+        >
+          📲 Send via M-Pesa
+        </motion.button>
+      </div>
+    )
+  }
+
+  if (status === 'sending') {
+    return (
+      <div className="mpesa-gift">
+        <div className="mpesa-icon" style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>⏳</div>
+        <p className="mpesa-cta">Sending STK push...</p>
+        <div className="mpesa-amount">KES 5,000</div>
+        <p className="mpesa-note">Please check your phone and enter your M-Pesa PIN</p>
+        <div style={{ marginTop: 16, display: 'flex', gap: 6, justifyContent: 'center' }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#d946ef', animation: 'bounce 1.4s ease-in-out infinite both' }} />
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#d946ef', animation: 'bounce 1.4s ease-in-out infinite both', animationDelay: '0.2s' }} />
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#d946ef', animation: 'bounce 1.4s ease-in-out infinite both', animationDelay: '0.4s' }} />
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'sent') {
+    return (
+      <motion.div
+        className="mpesa-gift"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+      >
+        <div className="mpesa-icon">✅</div>
+        <p className="mpesa-cta">Gift Sent Successfully!</p>
+        <div className="mpesa-amount">KES 5,000</div>
+        <p className="mpesa-note">
+          A surprise gift for {recipientName} — sent to <strong>{phone}</strong>.<br />
+          Check your M-Pesa messages for confirmation 💜
+        </p>
+        <motion.button
+          className="btn-secondary"
+          style={{ marginTop: 16, fontSize: '1rem', padding: '12px 28px' }}
+          onClick={() => { setStatus('idle'); setPhone('') }}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          Send Another
+        </motion.button>
+      </motion.div>
+    )
+  }
+
+  return null
+}
+
+/* ═════════════════════════════════════════════════════════════════════════════════════════
    FINAL REVEAL SCREEN (dynamic name + message + share)
-   ════════════════════════════════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
 
 function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = DEFAULT_CUSTOM_MESSAGE, onPlayAgain, mode = 'single', _currentPlayer = 1, playerResults = { 1: null, 2: null } }) {
   const [flipped, setFlipped] = useState(false)
@@ -848,22 +948,8 @@ function RevealScreen({ recipientName = DEFAULT_RECIPIENT_NAME, customMessage = 
           <p style={{ fontSize: '1.05rem', lineHeight: 1.85, color: 'rgba(255,255,255,0.88)' }}>
             {customMessage}
           </p>
-          <motion.button
-            className="btn-primary"
-            style={{ marginTop: 24, fontSize: '1.1rem', padding: '16px 44px' }}
-            onClick={() => {
-              confetti({
-                particleCount: 250,
-                spread: 200,
-                origin: { y: 0.6 },
-                colors: ['#d946ef', '#7c3aed', '#f43f5e', '#fbbf24', '#34d399'],
-              })
-            }}
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            🎊 Reveal Your Gift
-          </motion.button>
+          <MpesaGift recipientName={recipientName} />
+
           <div style={{ marginTop: 20, fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' }}>
             Made with every bit of 💜 — just for you
           </div>
