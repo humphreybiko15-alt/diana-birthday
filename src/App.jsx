@@ -10,9 +10,9 @@ import StoryCardPreview from './StoryCardCanvas.jsx'
    DEFAULT VALUES (fallback when no URL hash state)
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-const DEFAULT_RECIPIENT_NAME = 'Kireu'
+const DEFAULT_RECIPIENT_NAME = 'Humph'
 const DEFAULT_CUSTOM_MESSAGE = "You cracked all 7 — blue shirt, road kiss and all 👑💜"
-const DEFAULT_TARGET_WORD = 'KIREU'
+const DEFAULT_TARGET_WORD = 'HUMPH'
 const DEFAULT_BALLOON_SEQUENCE = ['🩷', '💜', '💛']
 const MEMORIZE_DURATION = 2500
 
@@ -40,7 +40,7 @@ function CinematicIntro({ onFinish }) {
   return (
     <div className="cinematic-curtain" data-step={step}>
       <div className="curtain-logo">
-        {step >= 1 && <span className="text-gradient">Happy Birthday, Kireu 🎂</span>}
+        {step >= 1 && <span className="text-gradient">Happy Birthday, Humph 🎂</span>}
       </div>
       {step >= 2 && (
         <div className="curtain-divider" />
