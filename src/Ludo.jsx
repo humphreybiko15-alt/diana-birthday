@@ -177,7 +177,7 @@ function renderPips(value) {
     6: [{x:0.28,y:0.2},{x:0.72,y:0.2},{x:0.28,y:0.5},{x:0.72,y:0.5},{x:0.28,y:0.8},{x:0.72,y:0.8}],
   }
   return positions[value].map((p, i) => (
-    <circle key={i} cx={p.x} cy={p.y} r="0.1" fill="#0a041a" />
+    <div key={i} className="die-pip" style={{ left: p.x * 100, top: p.y * 100 }} />
   ))
 }
 
@@ -493,7 +493,7 @@ export default function Ludo({ onClose }) {
                   }
 
                   let fill = '#120820'
-                  if (startP !== undefined) fill = `rgba(${hexToRgb(PLAYER_COLORS[startP])},0.35)`
+                  if (startP !== -1 && startP !== undefined) fill = `rgba(${hexToRgb(PLAYER_COLORS[startP])},0.35)`
                   else if (safe) fill = 'rgba(255,255,255,0.06)'
 
                   return (
