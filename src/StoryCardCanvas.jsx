@@ -384,7 +384,7 @@ export function StoryCardPreview({ params, onClose, onDownload }) {
           <button className="story-card-close" onClick={onClose} aria-label="Close preview">✕</button>
         </div>
         
-        <div className="story-card-preview-wrapper" style={{ width: previewWidth, height: previewHeight }}>
+        <div className="story-card-preview-wrapper" style={{ width: previewWidth }}>
           <canvas 
             ref={canvasRef} 
             width={previewWidth * 2} 
