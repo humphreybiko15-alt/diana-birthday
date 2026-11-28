@@ -1324,8 +1324,10 @@ body {
   background: rgba(13,5,22,0.75);
   backdrop-filter: blur(16px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 24px;
   animation: fade-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -1333,20 +1335,21 @@ body {
 .story-card-modal {
   width: 100%;
   max-width: 92vw;
-  max-height: 92vh;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 20px;
   padding: 16px;
   animation: scale-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .story-card-preview-wrapper {
   position: relative;
-  width: 100%;
+  width: auto;
   max-width: 420px;
   border-radius: var(--radius-xl);
   overflow: hidden;
@@ -1359,6 +1362,11 @@ body {
 /* Keep wrapper dimensions on small screens */
 .story-card-preview-wrapper canvas {
   display: block;
+  width: auto;
+  height: auto;
+  max-height: 60vh;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .story-card-header {
