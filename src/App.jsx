@@ -16,6 +16,59 @@ const DEFAULT_TARGET_WORD = 'KIREU'
 const DEFAULT_BALLOON_SEQUENCE = ['🩷', '💜', '💛']
 const MEMORIZE_DURATION = 2500
 
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   CINEMATIC INTRO
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+const CINEMATIC_INTRO_DURATION = 4200
+
+function CinematicIntro({ onFinish }) {
+  const [step, setStep] = useState(0)
+  useEffect(() => {
+    const t1 = setTimeout(() => setStep(1), 900)
+    const t2 = setTimeout(() => setStep(2), 2200)
+    const t3 = setTimeout(() => setStep(3), 3400)
+    const t4 = setTimeout(() => onFinish(), CINEMATIC_INTRO_DURATION)
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4) }
+  }, [onFinish])
+
+  const lines = [
+    { text: 'a story about us', delay: 0 },
+    { text: 'written in moonlight', delay: 1 },
+    { text: 'and sealed with a kiss 💋', delay: 2 },
+  ]
+
+  return (
+    <div className="cinematic-curtain" data-step={step}>
+      <div className="curtain-logo">
+        {step >= 1 && <span className="text-gradient">Happy Birthday, Kireu 🎂</span>}
+      </div>
+      {step >= 2 && (
+        <div className="curtain-divider" />
+      )}
+      <div className="stage-shell" style={{ opacity: step === 3 ? 1 : 0, transition: 'opacity 0.8s ease' }}>
+        {lines.map((line, i) => (
+          <div
+            key={i}
+            className="text-glow"
+            style={{
+              opacity: step === 3 && i === lines.length - 1 ? 1 : 0,
+              transform: `translateY(${step === 3 && i === lines.length - 1 ? 0 : 12}px)`,
+              transition: 'all 0.8s ease',
+              transitionDelay: `${line.delay * 600}ms`,
+              fontSize: '1.1rem',
+              fontWeight: 400,
+              color: 'rgba(255,255,255,0.8)',
+              marginTop: '12px',
+            }}
+          >
+            {line.text}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /* ══════════════════════════════════════════════════════════════════════════════════════
    CREATE YOUR OWN MODAL
    ═══════════════════════════════════════════════════════════════════════════════════════ */
@@ -1305,6 +1358,7 @@ export default function App() {
   const [screen, setScreen] = useState('welcome') // welcome | mode-selection | puzzle | pass-turn | reveal
   const [stage, setStage] = useState(0)
   const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [cinematicDone, setCinematicDone] = useState(false)
   const [shareUrl, setShareUrl] = useState('')
   const [gameState, setGameState] = useState(null)
   const [mode, setMode] = useState(null) // 'single' | 'passAndPlay'
@@ -1452,9 +1506,14 @@ export default function App() {
     <div className="app-container">
       <StarField />
       <Particles />
+      <div className="glow-orb glow-orb-1" />
+      <div className="glow-orb glow-orb-2" />
+      <div className="glow-orb glow-orb-3" />
+
+      {!cinematicDone && <CinematicIntro onFinish={() => setCinematicDone(true)} />}
 
       <AnimatePresence mode="wait">
-        {screen === 'welcome' && (
+        {screen === 'welcome' && cinematicDone && (
           <WelcomeScreen
             key="welcome"
             recipientName={recipientName}
