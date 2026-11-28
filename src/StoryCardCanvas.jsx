@@ -352,17 +352,37 @@ export function StoryCardPreview({ params, onClose, onDownload }) {
   const { generateForPreview, generateAndDownload, isGenerating } = useStoryCard();
   
   useEffect(() => {
-    if (canvasRef.current) {
-      const canvas = generateForPreview(params);
-      const ctx = canvasRef.current.getContext('2d');
-      // Draw the whole card scaled to fit the preview canvas. drawImage(canvas,
-      // 0, 0) renders at natural size, so only the top-left corner of the
-      // 1080x1920 card fit the small preview and everything else was clipped
-      // out (blank screen with just the top accent line). Draw the full source
-      // rect instead so the entire card is visible.
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(canvas, 0, 0, ctx.canvas.width, ctx.canvas.height);
+    if (!canvasRef.current) return;
+
+    const canvas = generateForPreview(params);
+    const ctx = canvasRef.current.getContext('2d');
+
+    // Logical (display) size of the generated card — generateStoryCard() sets
+    // canvas.style.width/height to the logical width/height (e.g. 1080×1920).
+    const cardW = parseFloat(canvas.style.width) || canvas.width;
+    const cardH = parseFloat(canvas.style.height) || canvas.height;
+
+    // Destination size = preview canvas intrinsic size (CSS width × height).
+    const destW = ctx.canvas.width;
+    const destH = ctx.canvas.height;
+
+    // Fit the full card into the preview while preserving the 9:16 aspect
+    // ratio (never distort/squish vertically).
+    const cardRatio = cardW / cardH;
+    let drawW = destW;
+    let drawH = destW / cardRatio;
+    if (drawH > destH) {
+      drawH = destH;
+      drawW = destH * cardRatio;
     }
+    const offsetX = (destW - drawW) / 2;
+    const offsetY = (destH - drawH) / 2;
+
+    // Keep smoothing ON so the downscaled preview stays crisp instead of
+    // blocky/nearest-neighbor.
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(canvas, 0, 0, cardW, cardH, offsetX, offsetY, drawW, drawH);
   }, [params, generateForPreview]);
   
   const handleDownload = () => {
