@@ -1311,7 +1311,7 @@ function PassTurnScreen({ currentPlayer, nextPlayer, onContinue, recipientName }
    WELCOME SCREEN (dynamic name)
    ════════════════════════════════════════════════════════════════════════════════════════ */
 
-function WelcomeScreen({ onStart, recipientName = DEFAULT_RECIPIENT_NAME, onCreate }) {
+function WelcomeScreen({ onStart, recipientName = DEFAULT_RECIPIENT_NAME, onCreate, onLudo }) {
   return (
     <motion.div
       className="stage"
@@ -1356,7 +1356,7 @@ function WelcomeScreen({ onStart, recipientName = DEFAULT_RECIPIENT_NAME, onCrea
       </motion.button>
 
       <div style={{ marginTop: 12, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-        <button className="btn-secondary" onClick={openLudo}>
+        <button className="btn-secondary" onClick={onLudo}>
           🎲 Play Ludo (Instant)
         </button>
         <button className="btn-secondary" onClick={onCreate}>
@@ -1631,6 +1631,7 @@ export default function App() {
             recipientName={recipientName}
             onStart={() => setScreen('mode-selection')}
             onCreate={() => setCreateModalOpen(true)}
+            onLudo={openLudo}
           />
         )}
 
@@ -1679,7 +1680,6 @@ export default function App() {
       {/* Ludo Instant Game */}
       {ludoOpen && (
         <Ludo
-          numPlayers={ludoPlayers}
           onClose={closeLudo}
         />
       )}
