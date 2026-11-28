@@ -120,19 +120,29 @@ const playSound = (kind) => {
   }
 }
 
-/* ── Home areas ── */
+/* ── Home areas (6×6 each, flush with corners) ── */
+/* Top-Left (Red): rows 0-5, cols 0-5 */
+/* Top-Right (Green): rows 0-5, cols 9-14 */
+/* Bottom-Right (Yellow): rows 9-14, cols 9-14 */
+/* Bottom-Left (Blue): rows 9-14, cols 0-5 */
 const HOME_AREAS = {
-  0: { x: 1, y: 1, w: 6, h: 6, start: { x: 6, y: 6 }, color: '#e74c3c' },
-  1: { x: 8, y: 1, w: 6, h: 6, start: { x: 6, y: 6 }, color: '#f1c40f' },
-  2: { x: 1, y: 8, w: 6, h: 6, start: { x: 8, y: 8 }, color: '#2ecc71' },
-  3: { x: 8, y: 8, w: 6, h: 6, start: { x: 8, y: 8 }, color: '#3498db' },
+  0: { x: 0, y: 0, w: 6, h: 6, start: { x: 6, y: 6 }, color: '#e74c3c' },  // Red - top-left
+  1: { x: 9, y: 0, w: 6, h: 6, start: { x: 8, y: 6 }, color: '#2ecc71' },  // Green - top-right
+  2: { x: 9, y: 9, w: 6, h: 6, start: { x: 8, y: 8 }, color: '#f1c40f' },  // Yellow - bottom-right
+  3: { x: 0, y: 9, w: 6, h: 6, start: { x: 6, y: 8 }, color: '#3498db' },  // Blue - bottom-left
 }
 
-/* ── Safe squares (star squares) on the 15×15 grid ── */
+/* ── Safe squares (star squares) - ONLY on playable track ── */
+/* 4 start squares + 4 star squares at specific positions */
 const SAFE_SQUARES = [
-  { x: 6, y: 6 }, { x: 8, y: 6 },
-  { x: 6, y: 8 }, { x: 8, y: 8 },
-  { x: 13, y: 6 }, { x: 1, y: 6 }, { x: 13, y: 13 }, { x: 1, y: 13 }
+  { x: 6, y: 6 },   // Red start
+  { x: 8, y: 6 },   // Green start
+  { x: 8, y: 8 },   // Yellow start
+  { x: 6, y: 8 },   // Blue start
+  { x: 2, y: 6 },   // Star at row 2, col 6
+  { x: 6, y: 12 },  // Star at row 6, col 12
+  { x: 12, y: 8 },  // Star at row 12, col 8
+  { x: 8, y: 2 },   // Star at row 8, col 2
 ]
 
 const isSafeSquare = (x, y) => SAFE_SQUARES.some(s => s.x === x && s.y === y)
@@ -143,12 +153,45 @@ const isStartSquare = (x, y) => {
   return -1
 }
 
-/* ── Home slot positions (4 per yard) ── */
+/* ── Home slot positions (4 per yard) - relative to yard origin ── */
 const HOME_SLOTS = {
-  0: [ {x:2,y:2},{x:4,y:2},{x:2,y:4},{x:4,y:4} ],
-  1: [ {x:9,y:2},{x:11,y:2},{x:9,y:4},{x:11,y:4} ],
-  2: [ {x:2,y:9},{x:4,y:9},{x:2,y:11},{x:4,y:11} ],
-  3: [ {x:9,y:9},{x:11,y:9},{x:9,y:11},{x:11,y:11} ],
+  0: [ {x:1,y:1},{x:3,y:1},{x:1,y:3},{x:3,y:3} ],   // Red yard at (0,0)
+  1: [ {x:10,y:1},{x:12,y:1},{x:10,y:3},{x:12,y:3} ], // Green yard at (9,0)
+  2: [ {x:10,y:10},{x:12,y:10},{x:10,y:12},{x:12,y:12} ], // Yellow yard at (9,9)
+  3: [ {x:1,y:10},{x:3,y:10},{x:1,y:12},{x:3,y:12} ], // Blue yard at (0,9)
+}
+
+/* ── Check if a cell is in a home yard ── */
+const isHomeYard = (x, y) => {
+  for (let p = 0; p < 4; p++) {
+    const ha = HOME_AREAS[p]
+    if (x >= ha.x && x < ha.x + ha.w && y >= ha.y && y < ha.y + ha.h) return p
+  }
+  return -1
+}
+
+/* ── Check if a cell is in the center 3×3 finishing home (rows 6-8, cols 6-8) ── */
+const isCenterHome = (x, y) => x >= 6 && x <= 8 && y >= 6 && y <= 8
+
+/* ── Check if a cell is a playable track tile ── */
+const isTrackTile = (x, y) => {
+  // Cross arms: row 6-8 (horizontal) and col 6-8 (vertical), excluding center 3x3
+  const inHorizontal = y >= 6 && y <= 8 && (x < 6 || x > 8)
+  const inVertical = x >= 6 && x <= 8 && (y < 6 || y > 8)
+  return inHorizontal || inVertical
+}
+
+/* ── Check if a cell is a home stretch tile (colored path leading to center) ── */
+const isHomeStretch = (x, y) => {
+  // Red: row 7, cols 1-5 (entering from left)
+  // Green: col 7, rows 1-5 (entering from top)
+  // Yellow: row 7, cols 9-13 (entering from right)
+  // Blue: col 7, rows 9-13 (entering from bottom)
+  if (y === 7 && x >= 1 && x <= 5) return 0 // Red
+  if (x === 7 && y >= 1 && y <= 5) return 1 // Green
+  if (y === 7 && x >= 9 && x <= 13) return 2 // Yellow
+  if (x === 7 && y >= 9 && y <= 13) return 3 // Blue
+  return -1
 }
 
 /* ── Render a 3D-style glossy token ── */
@@ -455,66 +498,118 @@ export default function Ludo({ onClose }) {
               role="img"
               aria-label="Ludo board"
             >
-              {/* Background grid cells */}
+              {/* ── Board background: all cells dark ── */}
               {Array.from({ length: BOARD_SIZE }).map((_, y) =>
                 Array.from({ length: BOARD_SIZE }).map((_, x) => {
-                  const isHomeArea =
-                    (x < 6 && y < 6) || (x > 8 && y < 6) || (x < 6 && y > 8) || (x > 8 && y > 8)
-                  const isCenterCell = x === 7 && y === 7
-                  const isCenterCol = (x >= 6 && x <= 8 && y >= 6 && y <= 8) && !isCenterCell
+                  const homeYard = isHomeYard(x, y)
+                  const center = isCenterHome(x, y)
+                  const track = isTrackTile(x, y)
+                  const stretch = isHomeStretch(x, y)
                   const startP = isStartSquare(x, y)
                   const safe = isSafeSquare(x, y)
 
-                  if (isHomeArea) {
-                    const yard = [0,1,2,3].find(p => {
-                      const ha = HOME_AREAS[p]
-                      return x >= ha.x && x < ha.x + ha.w && y >= ha.y && y < ha.y + ha.h
-                    })
-                    const active = yard !== undefined && yard === state.currentPlayer && yard < state.numPlayers
+                  // Home yards - solid colored frame, no grid lines inside
+                  if (homeYard !== -1) {
+                    const active = homeYard === state.currentPlayer && homeYard < state.numPlayers
                     return (
                       <rect key={`bg-${x}-${y}`} x={x} y={y} width={1} height={1}
-                        fill={yard !== undefined && active ? `rgba(${hexToRgb(PLAYER_COLORS[yard])},0.25)` : '#1a0f2e'}
-                        stroke="#2a1a4a" strokeWidth="0.08" />
+                        fill={PLAYER_COLORS[homeYard]}
+                        stroke="none" />
                     )
                   }
 
-                  if (isCenterCell) {
+                  // Center finishing home (3x3) - dark background
+                  if (center) {
                     return (
                       <rect key={`bg-${x}-${y}`} x={x} y={y} width={1} height={1}
-                        fill="#0d0516" stroke="#7c3aed" strokeWidth="0.12" />
+                        fill="#0d0516" stroke="none" />
                     )
                   }
 
-                  if (isCenterCol) {
+                  // Home stretch columns - colored player-specific tiles
+                  if (stretch !== -1) {
                     return (
                       <rect key={`bg-${x}-${y}`} x={x} y={y} width={1} height={1}
-                        fill="#160a26" stroke="#2a1a4a" strokeWidth="0.08" />
+                        fill={PLAYER_COLORS[stretch]}
+                        stroke="none" />
                     )
                   }
 
+                  // Playable cross track tiles - light/cream high contrast
+                  if (track) {
+                    const active = startP !== -1 && startP < state.numPlayers
+                    return (
+                      <rect key={`bg-${x}-${y}`} x={x} y={y} width={1} height={1}
+                        fill={active ? `rgba(${hexToRgb(PLAYER_COLORS[startP])},0.9)` : '#f5f5ea'}
+                        stroke="#cbbba0" strokeWidth="0.06" />
+                    )
+                  }
+
+                  // All other cells - dark background
                   let fill = '#120820'
-                  if (startP !== -1 && startP !== undefined) fill = `rgba(${hexToRgb(PLAYER_COLORS[startP])},0.35)`
-                  else if (safe) fill = 'rgba(255,255,255,0.06)'
-
+                  if (safe) fill = '#1a1a2e'
                   return (
                     <rect key={`bg-${x}-${y}`} x={x} y={y} width={1} height={1}
-                      fill={fill} stroke="#2a1a4a" strokeWidth="0.1" />
+                      fill={fill} stroke="#2a1a4a" strokeWidth="0.06" />
                   )
                 })
               )}
 
-              {/* Safe square stars */}
-              {SAFE_SQUARES.filter(s => isStartSquare(s.x, s.y) === -1).map((s, i) => (
-                <text key={`star-${i}`} x={s.x + 0.5} y={s.y + 0.65} textAnchor="middle" fontSize="0.75" fill="#fbbf24" filter="drop-shadow(0 0 2px rgba(0,0,0,0.8))">★</text>
+              {/* ── Home yard frames (solid colored border with inner box) ── */}
+              {[0,1,2,3].map(p => {
+                const ha = HOME_AREAS[p]
+                // Outer frame
+                return (
+                  <g key={`yard-frame-${p}`}>
+                    <rect x={ha.x} y={ha.y} width={ha.w} height={ha.h}
+                      fill="none" stroke={PLAYER_COLORS[p]} strokeWidth="0.12" />
+                    {/* Inner box (clean inner area without grid lines) */}
+                    <rect x={ha.x + 0.6} y={ha.y + 0.6} width={ha.w - 1.2} height={ha.h - 1.2}
+                      fill="#1a0f2e" stroke="none" />
+                    {/* Yard label */}
+                    <text x={ha.x + ha.w / 2} y={ha.y + 0.55} textAnchor="middle" fontSize="0.45"
+                      fill={PLAYER_COLORS[p]} fontWeight="700" letterSpacing="0.5">
+                      {['Red','Green','Yellow','Blue'][p]}
+                    </text>
+                  </g>
+                )
+              })}
+
+              {/* ── Center finishing home (3×3 with 4 colored triangles) ── */}
+              <g key="center-home">
+                {/* Outer border of 3×3 center */}
+                <rect x={6} y={6} width={3} height={3}
+                  fill="none" stroke="#7c3aed" strokeWidth="0.12" />
+                {/* 4 colored triangles pointing to center (7.5, 7.5) */}
+                {/* Red - left triangle */}
+                <path d="M 6 6 L 7.5 7.5 L 6 8 Z" fill="#e74c3c" />
+                {/* Green - top triangle */}
+                <path d="M 6 6 L 7.5 7.5 L 8 6 Z" fill="#2ecc71" />
+                {/* Yellow - right triangle */}
+                <path d="M 8 8 L 7.5 7.5 L 8 6 Z" fill="#f1c40f" />
+                {/* Blue - bottom triangle */}
+                <path d="M 6 8 L 7.5 7.5 L 8 8 Z" fill="#3498db" />
+              </g>
+
+              {/* ── Home stretch arrows (directional on entry tiles) ── */}
+              <g key="stretch-arrows" fill="rgba(255,255,255,0.9)">
+                {/* Red: entry at (6,6) pointing right ← row 7 cols 1-5 → center at col 7 */}
+                <path d="M 3.5 7.5 L 4.5 7.5 L 4 7 L 4 8 Z" />
+                {/* Green: entry at (8,6) pointing down ← col 7 rows 1-5 → center at row 7 */}
+                <path d="M 7.5 3.5 L 7.5 4.5 L 7 4 L 8 4 Z" />
+                {/* Yellow: entry at (8,8) pointing left ← row 7 cols 9-13 → center at col 7 */}
+                <path d="M 11.5 7.5 L 10.5 7.5 L 11 8 L 11 7 Z" />
+                {/* Blue: entry at (6,8) pointing up ← col 7 rows 9-13 → center at row 7 */}
+                <path d="M 7.5 11.5 L 7.5 10.5 L 8 11 L 7 11 Z" />
+              </g>
+
+              {/* ── Safe star (★) positions - ONLY on playable track ── */}
+              {SAFE_SQUARES.map((s, i) => (
+                <text key={`star-${i}`} x={s.x + 0.5} y={s.y + 0.62} textAnchor="middle" fontSize="0.85" fill="#fbbf24"
+                  filter="drop-shadow(0 0 3px rgba(0,0,0,0.9))">★</text>
               ))}
 
-              {/* Center home quadrant decoration */}
-              <path d="M 7 7 L 8 7 L 7.5 7.5 Z" fill="#e74c3c" />
-              <path d="M 8 7 L 8 8 L 7.5 7.5 Z" fill="#f1c40f" />
-              <path d="M 7 8 L 8 8 L 7.5 7.5 Z" fill="#2ecc71" />
-              <path d="M 7 7 L 7 8 L 7.5 7.5 Z" fill="#3498db" />
-
-              {/* ── Home yard tokens ── */}
+              {/* ── Home yard tokens (4 per yard) ── */}
               {[0,1,2,3].map(p => {
                 if (p >= state.numPlayers) return null
                 return HOME_SLOTS[p].map((slot, i) => {
