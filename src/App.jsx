@@ -5,6 +5,7 @@ import { RunawayHeartStage, BlueShirtStage, FirstKissStage } from './LoveStages.
 import { MemorySequenceLogic } from './memorySequenceLogic.js'
 import { compressState, getShareableUrl, parseUrlState } from './urlState.js'
 import StoryCardPreview from './StoryCardCanvas.jsx'
+import Ludo from './Ludo.jsx'
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    DEFAULT VALUES (fallback when no URL hash state)
@@ -1310,7 +1311,7 @@ function PassTurnScreen({ currentPlayer, nextPlayer, onContinue, recipientName }
    WELCOME SCREEN (dynamic name)
    ════════════════════════════════════════════════════════════════════════════════════════ */
 
-function WelcomeScreen({ onStart, recipientName = DEFAULT_RECIPIENT_NAME, onCreate }) {
+function WelcomeScreen({ onStart, recipientName = DEFAULT_RECIPIENT_NAME, onCreate, onLudo }) {
   return (
     <motion.div
       className="stage"
@@ -1354,7 +1355,10 @@ function WelcomeScreen({ onStart, recipientName = DEFAULT_RECIPIENT_NAME, onCrea
         🎁 Open My Gift
       </motion.button>
 
-      <div style={{ marginTop: 24, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+      <div style={{ marginTop: 12, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <button className="btn-secondary" onClick={onLudo}>
+          🎲 Play Ludo (Instant)
+        </button>
         <button className="btn-secondary" onClick={onCreate}>
           🎨 Make One for Someone You Love
         </button>
@@ -1468,6 +1472,10 @@ export default function App() {
   const [mode, setMode] = useState(null) // 'single' | 'passAndPlay'
   const [currentPlayer, setCurrentPlayer] = useState(1) // 1 or 2
   const [playerResults, setPlayerResults] = useState({ 1: null, 2: null }) // { completed: boolean, failedCount: number }
+  const [ludoOpen, setLudoOpen] = useState(false)
+
+  const openLudo = () => setLudoOpen(true)
+  const closeLudo = () => setLudoOpen(false)
 
   const STAGES = [Stage1, Stage2, Stage3, Stage4, RunawayHeartStage, BlueShirtStage, FirstKissStage]
   const CurrentStage = STAGES[stage]
@@ -1623,6 +1631,7 @@ export default function App() {
             recipientName={recipientName}
             onStart={() => setScreen('mode-selection')}
             onCreate={() => setCreateModalOpen(true)}
+            onLudo={openLudo}
           />
         )}
 
@@ -1665,6 +1674,13 @@ export default function App() {
         <CreateYourOwnModal
           onClose={() => setCreateModalOpen(false)}
           onCreate={handleCreate}
+        />
+      )}
+
+      {/* Ludo Instant Game */}
+      {ludoOpen && (
+        <Ludo
+          onClose={closeLudo}
         />
       )}
     </div>

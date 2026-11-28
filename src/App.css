@@ -182,3 +182,442 @@
     border-right-color: var(--border);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Ludo component styles
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.ludo-setup,
+.ludo-game {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(124,58,237,0.25) 0%, rgba(13,5,22,1) 70%);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: auto;
+}
+
+.ludo-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--c-fuchsia);
+  background: var(--c-bg2);
+  color: var(--c-white);
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  transition: transform 0.1s, box-shadow 0.2s;
+}
+
+.ludo-close:active { transform: scale(0.92); }
+
+.ludo-title {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.ludo-emoji {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 8px;
+  animation: float 3s ease-in-out infinite;
+}
+
+.ludo-title h2 {
+  font-family: 'Pacifico', cursive;
+  font-size: 1.75rem;
+  background: var(--gradient-hero);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+
+.ludo-title p {
+  color: rgba(255,255,255,0.7);
+  font-size: 0.95rem;
+}
+
+.ludo-setup-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.ludo-setup-row label {
+  color: var(--c-cream);
+  font-size: 0.95rem;
+  min-width: 60px;
+}
+
+.ludo-select {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 2px solid rgba(217,70,239,0.4);
+  background: var(--c-bg2);
+  color: var(--c-white);
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.ludo-select:focus {
+  outline: none;
+  border-color: var(--c-fuchsia);
+  box-shadow: 0 0 12px rgba(217,70,239,0.35);
+}
+
+.ludo-names {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.ludo-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ludo-name-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.ludo-name-input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 2px solid rgba(217,70,239,0.4);
+  background: var(--c-bg2);
+  color: var(--c-white);
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+.ludo-name-input:focus {
+  outline: none;
+  border-color: var(--c-fuchsia);
+  box-shadow: 0 0 12px rgba(217,70,239,0.35);
+}
+
+.btn-primary, .btn-secondary {
+  border: none;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.2s;
+}
+
+.btn-primary:active, .btn-secondary:active { transform: scale(0.96); }
+.btn-primary:disabled, .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--gradient-hero);
+  color: var(--c-white);
+  box-shadow: var(--shadow-glow);
+}
+
+.btn-secondary {
+  background: rgba(255,255,255,0.1);
+  color: var(--c-white);
+  border: 2px solid rgba(255,255,255,0.25);
+}
+
+.ludo-start {
+  width: 100%;
+  margin-top: 8px;
+  padding: 14px;
+  font-size: 1.1rem;
+}
+
+.ludo-hint {
+  margin-top: 16px;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.glass-card {
+  background: rgba(19,10,34,0.8);
+  border: 1px solid rgba(217,70,239,0.3);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px);
+  max-width: 420px;
+  width: 100%;
+}
+
+/* --- Game UI --- */
+
+.ludo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 14px;
+  gap: 12px;
+}
+
+.ludo-turn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ludo-turn-indicator {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.ludo-turn-text {
+  font-weight: 700;
+  color: var(--c-cream);
+  font-size: 1rem;
+}
+
+.ludo-dice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ludo-roll-btn {
+  min-width: 110px;
+  padding: 10px 16px;
+}
+
+.ludo-dice-face {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #1a0b33, #2d1b55);
+  border: 3px solid var(--c-fuchsia);
+  color: var(--c-white);
+  font-size: 2rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-card);
+  user-select: none;
+}
+
+.ludo-dice-face.rolling {
+  animation: ludo-roll-spin 0.15s infinite;
+}
+
+@keyframes ludo-roll-spin {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(90deg); }
+  50% { transform: rotate(180deg); }
+  75% { transform: rotate(270deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.ludo-message {
+  margin-bottom: 10px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(217,70,239,0.15);
+  border: 1px solid rgba(217,70,239,0.4);
+  color: var(--c-white);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+  max-width: 600px;
+}
+
+.ludo-extra {
+  color: #fbbf24;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+/* --- Board --- */
+
+.ludo-board {
+  position: relative;
+  max-width: 560px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto 18px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0b041a;
+  border: 2px solid rgba(217,70,239,0.25);
+}
+
+.ludo-home {
+  position: absolute;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 4px;
+  padding: 6px;
+}
+
+.ludo-home-label {
+  grid-column: 1 / -1;
+  grid-row: 1 / 2;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+  color: rgba(255,255,255,0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ludo-piece-home {
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+.ludo-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  grid-template-rows: repeat(15, 1fr);
+  gap: 2px;
+  padding: 4px;
+  background: #0b041a;
+}
+
+.ludo-cell {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  position: relative;
+}
+
+.ludo-center {
+  background: linear-gradient(135deg, #1a0b33, #2d1b55);
+  border-radius: 50%;
+  border: 2px dashed rgba(217,70,239,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ludo-home-column {
+  background: rgba(217,70,239,0.08);
+}
+
+.ludo-start {
+  position: relative;
+}
+
+.ludo-start::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px dashed;
+  border-radius: 4px;
+  animation: ludo-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.ludo-start-0::before { border-color: #e74c3c; }
+.ludo-start-1::before { border-color: #f1c40f; }
+.ludo-start-2::before { border-color: #2ecc71; }
+.ludo-start-3::before { border-color: #3498db; }
+
+@keyframes ludo-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+.ludo-piece {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  transition: transform 0.2s ease;
+}
+
+.ludo-piece:active { transform: translate(-50%, -50%) scale(1.15); }
+
+.ludo-home .ludo-piece-home {
+  position: static;
+  transform: none;
+}
+
+.ludo-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+  width: 100%;
+}
+
+.ludo-move-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--gradient-gold);
+  color: #0b041a;
+  box-shadow: 0 0 20px rgba(251,191,36,0.35);
+}
+
+/* --- Winner --- */
+
+.ludo-winner {
+  text-align: center;
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+  animation: float 3s ease-in-out infinite;
+}
+
+.ludo-winner-crown {
+  font-size: 3rem;
+  margin-bottom: 10px;
+}
+
+.ludo-winner-text {
+  font-family: 'Pacifico', cursive;
+  font-size: 2rem;
+  background: var(--gradient-gold);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 16px;
+}
+
+/* Reduce motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .ludo-emoji, .ludo-winner { animation: none; }
+  .ludo-dice-face.rolling { animation: none; }
+  .ludo-start::before { animation: none; }
+}
+
